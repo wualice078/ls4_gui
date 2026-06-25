@@ -1,0 +1,135 @@
+function showToast(message, ok = true) {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.classList.remove("hidden");
+  toast.style.borderColor = ok ? "#166534" : "#991b1b";
+  window.clearTimeout(showToast._timer);
+  showToast._timer = window.setTimeout(() => toast.classList.add("hidden"), 3500);
+}
+
+async function postAction(url, body) {
+  const options = {
+    method: "POST",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  };
+  if (body) {
+    options.headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(url, options);
+  const data = await response.json();
+  if (!response.ok && !data.message) {
+    throw new Error(`Request failed (${response.status})`);
+  }
+  return data;
+}
+
+function updateStatus(status) {
+  const domeBadge = document.getElementById("dome-badge");
+  const schedulerBadge = document.getElementById("scheduler-badge");
+  const telescopeBadge = document.getElementById("telescope-badge");
+  if (domeBadge) domeBadge.textContent = `Dome: ${status.dome}`;
+  if (schedulerBadge) schedulerBadge.textContent = `Observing: ${status.scheduler}`;
+  if (telescopeBadge) telescopeBadge.textContent = `Telescope: ${status.telescope_services || "unknown"}`;
+
+  Object.entries(status.pdu_outlets || {}).forEach(([outlet, state]) => {
+    const card = document.querySelector(`.pdu-outlet[data-outlet="${outlet}"] .pdu-state`);
+    if (card) card.textContent = state;
+  });
+
+  const mosaicMeta = document.getElementById("mosaic-meta");
+  if (mosaicMeta && status.latest_mosaic) {
+    mosaicMeta.textContent = `Latest mosaic: ${status.latest_mosaic}`;
+  }
+}
+
+function refreshWebcam(camera) {
+  const imageIds = {
+    oil_pump: "oil-pump-image",
+    tcs: "tcs-image",
+    flux_meter: "flux-meter-image",
+  };
+  const image = document.getElementById(imageIds[camera]);
+  if (!image) return Promise.resolve();
+
+  image.src = `/api/webcam/${camera}/image?ts=${Date.now()}`;
+  return postAction(`/api/webcam/${camera}`).then((data) => {
+    showToast(data.message, data.ok);
+    if (data.status) updateStatus(data.status);
+    return data;
+  });
+}
+
+function refreshMosaicImage() {
+  const image = document.getElementById("mosaic-image");
+  if (image) {
+    image.src = `/api/mosaic/image?ts=${Date.now()}`;
+  }
+}
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-action], button[data-webcam]");
+  if (!button) return;
+
+  try {
+    if (button.dataset.webcam) {
+      await refreshWebcam(button.dataset.webcam);
+      return;
+    }
+
+    const action = button.dataset.action;
+    const value = button.dataset.value;
+    let url;
+
+    if (action === "dome") {
+      url = `/api/dome/${value}`;
+    } else if (action === "telescope") {
+      url = `/api/telescope/${value}`;
+    } else if (action === "scheduler") {
+      url = `/api/scheduler/${value}`;
+    } else if (action === "pdu") {
+      url = `/api/pdu/${button.dataset.outlet}/${value}`;
+    } else {
+      return;
+    }
+
+    const data = await postAction(url);
+    showToast(data.message, data.ok);
+    if (data.status) updateStatus(data.status);
+  } catch (error) {
+    showToast(error.message || "Action failed", false);
+  }
+});
+
+document.getElementById("refresh-all-webcams")?.addEventListener("click", async () => {
+  await Promise.all([
+    refreshWebcam("flux_meter"),
+    refreshWebcam("oil_pump"),
+    refreshWebcam("tcs"),
+  ]);
+});
+
+document.getElementById("mosaic-form")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const prefix = document.getElementById("mosaic-prefix")?.value?.trim();
+  if (!prefix) return;
+
+  try {
+    const data = await postAction("/api/mosaic/generate", { prefix });
+    showToast(data.message, data.ok);
+    if (data.status) updateStatus(data.status);
+    if (data.ok) refreshMosaicImage();
+  } catch (error) {
+    showToast(error.message || "Mosaic generation failed", false);
+  }
+});
+
+const refreshSeconds = window.LS4_GUI?.refreshSeconds || 30;
+window.setInterval(() => {
+  refreshWebcam("flux_meter");
+  refreshWebcam("oil_pump");
+  refreshWebcam("tcs");
+}, refreshSeconds * 1000);

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · LS4 Control{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <h1>LS4 Operator Dashboard</h1>
+    <p class="muted">Pre-flight checks, observing controls, and data verification.</p>
+  </div>
+  <div class="status-badges">
+    {% if simulate %}
+      <span class="badge badge-warn">Simulation mode</span>
+    {% else %}
+      <span class="badge badge-live">Live mode</span>
+    {% endif %}
+    <span class="badge" id="dome-badge">Dome: {{ status.dome }}</span>
+    <span class="badge" id="telescope-badge">Telescope: {{ status.telescope_services }}</span>
+    <span class="badge" id="scheduler-badge">Observing: {{ status.scheduler }}</span>
+  </div>
+</section>
+
+<section class="grid two-col">
+  <article class="panel full-width">
+    <div class="panel-header">
+      <h2>Pre-flight visual checks</h2>
+      <button class="btn btn-secondary" id="refresh-all-webcams">Refresh all</button>
+    </div>
+    <div class="webcam-grid three-col">
+      <div class="webcam-card">
+        <h3>Flux meter</h3>
+        <p class="muted small">Turn on outlet 8, verify mercury level, then turn outlet 8 off.</p>
+        <img id="flux-meter-image" src="{{ url_for('api_webcam_image', camera='flux_meter') }}" alt="Flux meter camera">
+        <button class="btn" data-webcam="flux_meter">Refresh</button>
+      </div>
+      <div class="webcam-card">
+        <h3>Oil pump</h3>
+        <img id="oil-pump-image" src="{{ url_for('api_webcam_image', camera='oil_pump') }}" alt="Oil pump webcam">
+        <button class="btn" data-webcam="oil_pump">Refresh</button>
+      </div>
+      <div class="webcam-card">
+        <h3>TCS</h3>
+        <img id="tcs-image" src="{{ url_for('api_webcam_image', camera='tcs') }}" alt="TCS webcam">
+        <button class="btn" data-webcam="tcs">Refresh</button>
+      </div>
+    </div>
+    <p class="muted small">Auto-refresh every {{ webcam_refresh_seconds }} seconds.</p>
+  </article>
+
+  <article class="panel">
+    <div class="panel-header">
+      <h2>Telescope services</h2>
+    </div>
+    <div class="button-row">
+      <button class="btn btn-success" data-action="telescope" data-value="start">Start questctl</button>
+      <button class="btn btn-danger" data-action="telescope" data-value="stop">Stop questctl</button>
+    </div>
+    <p class="muted small">Start telescope control before opening the dome.</p>
+  </article>
+
+  <article class="panel">
+    <div class="panel-header">
+      <h2>Dome</h2>
+    </div>
+    <div class="button-row">
+      <button class="btn btn-success" data-action="dome" data-value="open">Open dome</button>
+      <button class="btn btn-danger" data-action="dome" data-value="close">Close dome</button>
+    </div>
+    <p class="muted small">Open only after meteo checks and webcam verification.</p>
+  </article>
+
+  <article class="panel">
+    <div class="panel-header">
+      <h2>PDU outlets</h2>
+    </div>
+    <div class="pdu-grid" id="pdu-grid">
+      {% for outlet, state in status.pdu_outlets.items() %}
+      <div class="pdu-outlet" data-outlet="{{ outlet }}">
+        <div class="pdu-label">
+          Outlet {{ outlet }}
+          {% if status.pdu_outlet_labels.get(outlet) %}
+            <span class="muted">· {{ status.pdu_outlet_labels[outlet] }}</span>
+          {% endif %}
+        </div>
+        <div class="pdu-state">{{ state }}</div>
+        <div class="button-row compact">
+          <button class="btn btn-small" data-action="pdu" data-outlet="{{ outlet }}" data-value="on">On</button>
+          <button class="btn btn-small btn-secondary" data-action="pdu" data-outlet="{{ outlet }}" data-value="off">Off</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-header">
+      <h2>Observing</h2>
+    </div>
+    <div class="button-row">
+      <button class="btn btn-success" data-action="scheduler" data-value="start">Start</button>
+      {% if scheduler_pause_enabled %}
+      <button class="btn btn-warning" data-action="scheduler" data-value="pause">Pause</button>
+      {% endif %}
+      <button class="btn btn-danger" data-action="scheduler" data-value="stop">Stop</button>
+    </div>
+    <p class="muted small">Start after dome, instrument, and camera checks are complete.</p>
+  </article>
+
+  <article class="panel">
+    <div class="panel-header">
+      <h2>End of night</h2>
+    </div>
+    <div class="button-row">
+      <button class="btn btn-warning" data-action="telescope" data-value="stow">Stow telescope</button>
+    </div>
+    <p class="muted small">Stop observing, stow the telescope, close the dome, then stop questctl.</p>
+  </article>
+
+  <article class="panel full-width">
+    <div class="panel-header">
+      <h2>Mosaic check</h2>
+    </div>
+    <form id="mosaic-form" class="inline-form">
+      <label>
+        Exposure prefix
+        <input type="text" id="mosaic-prefix" name="prefix" placeholder="20260213010625sC" required>
+      </label>
+      <button type="submit" class="btn btn-primary">Generate mosaic</button>
+    </form>
+    <img id="mosaic-image" class="mosaic-preview" src="{{ url_for('api_mosaic_image') }}" alt="Mosaic preview">
+    <p class="muted small" id="mosaic-meta">
+      {% if status.latest_mosaic %}Latest mosaic: {{ status.latest_mosaic }}{% else %}Enter a prefix from the latest exposure set.{% endif %}
+    </p>
+  </article>
+
+  <article class="panel">
+    <div class="panel-header">
+      <h2>Observing logbook</h2>
+      <a class="btn btn-secondary" href="{{ logbook_url }}" target="_blank" rel="noopener noreferrer">Open logbook</a>
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-header">
+      <h2>AWS server</h2>
+      <a class="btn btn-secondary" href="{{ aws_server_url }}" target="_blank" rel="noopener noreferrer">Open AWS server</a>
+    </div>
+  </article>
+</section>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+  window.LS4_GUI = {
+    refreshSeconds: {{ webcam_refresh_seconds }},
+  };
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

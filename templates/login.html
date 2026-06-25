@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Login · LS4 Control{% endblock %}
+
+{% block content %}
+<section class="login-card">
+  <h1>Operator Login</h1>
+  <p class="muted">This interface controls telescope hardware. Access is restricted to authorized operators.</p>
+
+  <form method="post" class="stack-form">
+    <label>
+      Username
+      <input type="text" name="username" autocomplete="username" required autofocus>
+    </label>
+    <label>
+      Password
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button type="submit" class="btn btn-primary">Sign in</button>
+  </form>
+</section>
+{% endblock %}
