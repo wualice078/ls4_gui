@@ -17,20 +17,12 @@ SECRET_KEY = os.getenv("LS4_GUI_SECRET_KEY", "dev-only-change-me-in-production")
 GUI_USERNAME = os.getenv("LS4_GUI_USERNAME", "observer")
 GUI_PASSWORD = os.getenv("LS4_GUI_PASSWORD", "changeme")
 
-# When True, hardware actions are mocked for the VM / dry-run testing.
+# When True, all hardware actions are mocked (no dome, PDU, scheduler, or real camera scripts).
 SIMULATE = os.getenv("LS4_GUI_SIMULATE", "true").lower() in {"1", "true", "yes"}
 
-# Simulated observer home that mirrors /home/observer on ls4-workstn.
 OBSERVER_HOME = Path(os.getenv("LS4_OBSERVER_HOME", "/home/ls4/code/observer-home"))
 
 KENNETH_DIR = Path(os.getenv("LS4_KENNETH_DIR", str(OBSERVER_HOME / "kenneth")))
-
-# Call real observer scripts (start_questctl, obs_control_script, etc.) when ready.
-USE_MOUNTAIN_STACK = os.getenv("LS4_USE_MOUNTAIN_STACK", "true").lower() in {
-    "1",
-    "true",
-    "yes",
-}
 
 DOME_TRANSITION_SECONDS = int(os.getenv("LS4_DOME_TRANSITION_SECONDS", "90"))
 

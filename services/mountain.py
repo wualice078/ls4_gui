@@ -6,8 +6,38 @@ import os
 import subprocess
 from pathlib import Path
 
-from config import OBSERVER_HOME
-from config import FLUX_METER_SNAPSHOT_DIR, KENNETH_DIR, LS4_DATA_DIR
+from config import FLUX_METER_SNAPSHOT_DIR, KENNETH_DIR, LS4_DATA_DIR, OBSERVER_HOME
+
+
+def _latest_image(directory: Path, pattern: str) -> Path | None:
+    if not directory.exists():
+        return None
+    images = sorted(
+        directory.glob(pattern),
+        key=lambda path: path.stat().st_mtime,
+    )
+    return images[-1] if images else None
+
+
+def _run_capture_script(script: Path, args: list[str]) -> tuple[bool, str, Path | None]:
+    if not script.exists():
+        return False, f"Script not found: {script}", None
+
+    python = os.environ.get("LS4_GUI_PYTHON", "/home/ls4/ls4_venv/bin/python")
+    result = subprocess.run(
+        [python, str(script), *args],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        cwd=OBSERVER_HOME,
+    )
+    if result.returncode != 0:
+        output = (result.stdout or "") + (result.stderr or "")
+        return False, output.strip() or f"{script.name} failed", None
+    image_path = Path((result.stdout or "").strip())
+    if image_path.exists():
+        return True, f"{script.name} finished.", image_path
+    return False, f"{script.name} did not produce an image path.", None
 
 
 def _tcsh(command: str, timeout: int = 120) -> subprocess.CompletedProcess[str]:
@@ -111,47 +141,26 @@ def latest_flux_meter_snapshot() -> Path | None:
 def refresh_flux_meter() -> tuple[bool, str, Path | None]:
     snapshot = latest_flux_meter_snapshot()
     if snapshot is not None:
-        return True, "Flux meter snapshot loaded.", snapshot
+        return True, f"Flux meter snapshot loaded ({snapshot.name}).", snapshot
 
-    script = KENNETH_DIR / "TCS_webcam.py"
-    python = os.environ.get("LS4_GUI_PYTHON", "/home/ls4/ls4_venv/bin/python")
-    result = subprocess.run(
-        [python, str(script), "--camera", "flux"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        cwd=OBSERVER_HOME,
-    )
-    if result.returncode != 0:
-        output = (result.stdout or "") + (result.stderr or "")
-        return False, output.strip() or "flux meter capture failed", None
-    image_path = Path((result.stdout or "").strip())
-    return True, "Flux meter snapshot refreshed.", image_path
+    return False, f"No flux meter images found in {FLUX_METER_SNAPSHOT_DIR}", None
 
 
 def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
-    mapping = {
-        "oil_pump": "oil_pump",
-        "tcs": "tcs",
-    }
-    if camera not in mapping:
-        return False, f"Unknown camera: {camera}", None
+    if camera == "tcs":
+        image = _latest_image(KENNETH_DIR, "TCScam*.jpg")
+        if image is not None:
+            return True, f"TCS webcam loaded ({image.name}).", image
+        return _run_capture_script(KENNETH_DIR / "TCS_webcam.py", ["--camera", "tcs"])
 
-    script = KENNETH_DIR / ("TCS_webcam.py" if camera == "tcs" else "webpump_capture.py")
-    python = os.environ.get("LS4_GUI_PYTHON", "/home/ls4/ls4_venv/bin/python")
-    cam_flag = mapping[camera]
-    result = subprocess.run(
-        [python, str(script), "--camera", cam_flag],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        cwd=OBSERVER_HOME,
-    )
-    if result.returncode != 0:
-        output = (result.stdout or "") + (result.stderr or "")
-        return False, output.strip() or "webcam capture failed", None
-    image_path = Path((result.stdout or "").strip())
-    return True, f"{camera.replace('_', ' ').title()} webcam refreshed.", image_path
+    if camera == "oil_pump":
+        for pattern in ("*oil*pump*.jpg", "*oil*pump*.png", "*manometer*.jpg", "*pressure*.jpg"):
+            image = _latest_image(KENNETH_DIR, pattern)
+            if image is not None:
+                return True, f"Oil pump image loaded ({image.name}).", image
+        return _run_capture_script(KENNETH_DIR / "webpump_capture.py", ["--camera", "oil_pump"])
+
+    return False, f"Unknown camera: {camera}", None
 
 
 def observer_home_ready() -> bool:

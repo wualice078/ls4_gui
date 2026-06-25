@@ -19,7 +19,6 @@ from config import (
     OPERATOR_PDU_OUTLETS,
     PDU_OUTLET_LABELS,
     SIMULATE,
-    USE_MOUNTAIN_STACK,
 )
 from services import mountain
 from services.mosaic_preview import fits_to_png
@@ -41,12 +40,42 @@ class ControlService:
         self._latest_mosaic_preview: Path | None = None
         self._latest_mosaic_fits: Path | None = None
 
+    def _live_hardware(self) -> bool:
+        return not SIMULATE and mountain.observer_home_ready()
+
+    def _sim_webcam_script(self) -> Path:
+        return Path(__file__).resolve().parents[1] / "sim" / "webcam_capture.py"
+
+    def _run_sim_webcam(self, camera: str) -> tuple[bool, str, Path | None]:
+        mapping = {"oil_pump": "oil_pump", "tcs": "tcs", "flux_meter": "flux"}
+        cam = mapping.get(camera)
+        if cam is None:
+            return False, f"Unknown camera: {camera}", None
+
+        python = Path(os.environ.get("LS4_GUI_PYTHON", "/home/ls4/ls4_venv/bin/python"))
+        env = os.environ.copy()
+        env["LS4_OBSERVER_HOME"] = str(OBSERVER_HOME)
+        (OBSERVER_HOME / "sim" / "webcams").mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(
+            [str(python), str(self._sim_webcam_script()), "--camera", cam],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+        if result.returncode != 0:
+            output = (result.stdout or "") + (result.stderr or "")
+            return False, output.strip() or "Simulated webcam capture failed", None
+        image_path = Path((result.stdout or "").strip())
+        label = camera.replace("_", " ").title()
+        return True, f"{label} refreshed (simulated).", image_path
+
     def status(self) -> dict[str, Any]:
         snap = self._sim.snapshot()
         return {
             "simulate": SIMULATE,
             "observer_home": str(OBSERVER_HOME),
-            "mountain_stack": USE_MOUNTAIN_STACK and mountain.observer_home_ready(),
+            "live_hardware": self._live_hardware(),
             "dome": self._sim.dome_status(),
             "scheduler": snap["scheduler"],
             "telescope_services": snap["telescope_services"],
@@ -59,7 +88,7 @@ class ControlService:
 
     def open_dome(self) -> ActionResult:
         ok, message = self._sim.request_dome("open")
-        if USE_MOUNTAIN_STACK and mountain.observer_home_ready():
+        if self._live_hardware():
             stack_ok, stack_msg = mountain.run_opendome_raw()
             if stack_ok:
                 message = f"{message} [{stack_msg}]"
@@ -69,7 +98,7 @@ class ControlService:
 
     def close_dome(self) -> ActionResult:
         ok, message = self._sim.request_dome("closed")
-        if USE_MOUNTAIN_STACK and mountain.observer_home_ready():
+        if self._live_hardware():
             stack_ok, stack_msg = mountain.run_closedome()
             if stack_ok:
                 message = f"{message} [{stack_msg}]"
@@ -78,7 +107,7 @@ class ControlService:
         return ActionResult(ok, message, {"status": self.status()})
 
     def telescope_start(self) -> ActionResult:
-        if USE_MOUNTAIN_STACK and mountain.observer_home_ready():
+        if self._live_hardware():
             ok, message = mountain.run_start_questctl()
             if ok:
                 self._sim.set_telescope_services("running")
@@ -88,7 +117,7 @@ class ControlService:
         return ActionResult(True, "Telescope services started (simulated).", {"status": self.status()})
 
     def telescope_stop(self) -> ActionResult:
-        if USE_MOUNTAIN_STACK and mountain.observer_home_ready():
+        if self._live_hardware():
             ok, message = mountain.run_stop_questctl()
             self._sim.set_telescope_services("stopped")
             return ActionResult(ok, message, {"status": self.status()})
@@ -97,7 +126,7 @@ class ControlService:
         return ActionResult(True, "Telescope services stopped (simulated).", {"status": self.status()})
 
     def stow_telescope(self) -> ActionResult:
-        if USE_MOUNTAIN_STACK and mountain.observer_home_ready():
+        if self._live_hardware():
             ok, message = mountain.run_stow_telescope()
             return ActionResult(ok, message, {"status": self.status()})
 
@@ -119,13 +148,17 @@ class ControlService:
                 {"status": self.status()},
             )
 
-        ok, message = mountain.run_pdu(outlet, powered)
-        if ok:
-            self._sim.set_pdu_outlet(outlet, powered)
+        if self._live_hardware():
+            ok, message = mountain.run_pdu(outlet, powered)
+            if ok:
+                self._sim.set_pdu_outlet(outlet, powered)
+            return ActionResult(ok, message, {"status": self.status()})
+
+        ok, message = self._sim.set_pdu_outlet(outlet, powered)
         return ActionResult(ok, message, {"status": self.status()})
 
     def scheduler_start(self) -> ActionResult:
-        if USE_MOUNTAIN_STACK and mountain.observer_home_ready():
+        if self._live_hardware():
             ok, message = mountain.run_obs_control("start")
             if ok:
                 self._sim.set_scheduler("running")
@@ -135,7 +168,7 @@ class ControlService:
         return ActionResult(True, "Observing started (simulated).", {"status": self.status()})
 
     def scheduler_stop(self) -> ActionResult:
-        if USE_MOUNTAIN_STACK and mountain.observer_home_ready():
+        if self._live_hardware():
             ok, message = mountain.run_obs_control("stop")
             if ok:
                 self._sim.set_scheduler("stopped")
@@ -152,7 +185,7 @@ class ControlService:
                 {"status": self.status()},
             )
 
-        if USE_MOUNTAIN_STACK and mountain.observer_home_ready():
+        if self._live_hardware():
             ok, message = mountain.run_obs_control("pause")
             if ok:
                 self._sim.set_scheduler("paused")
@@ -166,10 +199,13 @@ class ControlService:
         if camera not in allowed:
             return ActionResult(False, f"Unknown camera: {camera}")
 
-        if camera == "flux_meter":
-            ok, message, _path = mountain.refresh_flux_meter()
+        if self._live_hardware():
+            if camera == "flux_meter":
+                ok, message, _path = mountain.refresh_flux_meter()
+            else:
+                ok, message, _path = mountain.refresh_webcam(camera)
         else:
-            ok, message, _path = mountain.refresh_webcam(camera)
+            ok, message, _path = self._run_sim_webcam(camera)
 
         now = time.time()
         self._last_webcam_fetch[camera] = now
@@ -195,10 +231,11 @@ class ControlService:
         return path if path and path.exists() else None
 
     def _flux_meter_image_path(self) -> Path:
-        snapshot = mountain.latest_flux_meter_snapshot()
-        if snapshot is not None:
-            return snapshot
-        return OBSERVER_HOME / "snapshots" / "flux_meter_latest.svg"
+        if self._live_hardware():
+            snapshot = mountain.latest_flux_meter_snapshot()
+            if snapshot is not None:
+                return snapshot
+        return OBSERVER_HOME / "sim" / "webcams" / "flux_meter_latest.svg"
 
     def generate_mosaic(self, prefix: str) -> ActionResult:
         prefix = prefix.strip()
@@ -210,7 +247,7 @@ class ControlService:
         message = ""
         ok = False
 
-        if USE_MOUNTAIN_STACK and mountain.observer_home_ready() and data_dir.exists():
+        if self._live_hardware() and data_dir.exists():
             ok, message, fits_path = mountain.run_make_mosaic(prefix, data_dir)
 
         if fits_path is None:

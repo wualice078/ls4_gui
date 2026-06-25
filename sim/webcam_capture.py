@@ -5,13 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
-OBSERVER_HOME = Path(__file__).resolve().parents[2] / "observer-home"
+_DEFAULT_HOME = Path(__file__).resolve().parents[2] / "observer-home"
+OBSERVER_HOME = Path(os.getenv("LS4_OBSERVER_HOME", str(_DEFAULT_HOME)))
 STATE_FILE = OBSERVER_HOME / "sim" / "state.json"
 WEBCAM_DIR = OBSERVER_HOME / "sim" / "webcams"
-SNAPSHOT_DIR = OBSERVER_HOME / "snapshots"
 
 
 def _load_state() -> dict:
@@ -62,7 +63,7 @@ def capture_flux_cam(state: dict, output: Path | None) -> Path:
     light_on = state.get("pdu_outlets", {}).get("8", False)
     subtitle = "Flux meter light ON" if light_on else "Flux meter light OFF"
     accent = "#38bdf8" if light_on else "#94a3b8"
-    path = output or SNAPSHOT_DIR / f"{time.strftime('%Y%m%d_%H%M%S')}_cam3.jpg.svg"
+    path = output or WEBCAM_DIR / "flux_meter_latest.svg"
     return _write_image(path, _svg("Flux Meter Camera", subtitle, accent))
 
 
