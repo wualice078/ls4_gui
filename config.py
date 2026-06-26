@@ -45,6 +45,10 @@ FLUX_METER_SNAPSHOT_DIR = Path(
     os.getenv("LS4_FLUX_METER_SNAPSHOT_DIR", str(OBSERVER_HOME / "snapshots"))
 )
 
+# Optional overrides if camera images live outside kenneth/snapshots (see scripts/discover_mountain_paths.sh).
+TCS_WEBCAM_DIR = Path(os.getenv("LS4_TCS_WEBCAM_DIR", str(KENNETH_DIR)))
+OIL_PUMP_IMAGE_DIR = Path(os.getenv("LS4_OIL_PUMP_IMAGE_DIR", str(KENNETH_DIR)))
+
 LS4_DATA_DIR = Path(os.getenv("LS4_DATA_DIR", "/data/observer"))
 
 LOGBOOK_URL = os.getenv(

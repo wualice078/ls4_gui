@@ -115,7 +115,10 @@ document.getElementById("refresh-all-webcams")?.addEventListener("click", async 
 document.getElementById("mosaic-form")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const prefix = document.getElementById("mosaic-prefix")?.value?.trim();
-  if (!prefix) return;
+  if (!prefix) {
+    showToast("Exposure prefix is required.", false);
+    return;
+  }
 
   try {
     const data = await postAction("/api/mosaic/generate", { prefix });

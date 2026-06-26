@@ -37,6 +37,7 @@ class ControlService:
         state_file = OBSERVER_HOME / "sim" / "state.json"
         self._sim = SimState(state_file, dome_transition_seconds=DOME_TRANSITION_SECONDS)
         self._last_webcam_fetch: dict[str, float] = {}
+        self._last_webcam_path: dict[str, Path] = {}
         self._latest_mosaic_preview: Path | None = None
         self._latest_mosaic_fits: Path | None = None
 
@@ -201,34 +202,71 @@ class ControlService:
 
         if self._live_hardware():
             if camera == "flux_meter":
-                ok, message, _path = mountain.refresh_flux_meter()
+                ok, message, path = mountain.refresh_flux_meter()
             else:
-                ok, message, _path = mountain.refresh_webcam(camera)
+                ok, message, path = mountain.refresh_webcam(camera)
         else:
-            ok, message, _path = self._run_sim_webcam(camera)
+            ok, message, path = self._run_sim_webcam(camera)
 
         now = time.time()
         self._last_webcam_fetch[camera] = now
+        if path is not None and path.exists():
+            self._last_webcam_path[camera] = path
         if ok:
             self._sim.mark_webcam_refresh(camera)
+
+        if not ok:
+            cached = self._resolve_webcam_image(camera)
+            if cached is not None:
+                self._last_webcam_path[camera] = cached
+                return ActionResult(
+                    True,
+                    f"{message} Showing last available image ({cached.name}).",
+                    {"camera": camera, "fetched_at": now, "degraded": True, "status": self.status()},
+                )
+
         return ActionResult(
             ok,
             message,
             {"camera": camera, "fetched_at": now, "status": self.status()},
         )
 
-    def webcam_image_path(self, camera: str) -> Path | None:
-        mapping = {
+    def _resolve_webcam_image(self, camera: str) -> Path | None:
+        cached = self._last_webcam_path.get(camera)
+        if cached is not None and cached.exists():
+            return cached
+
+        if self._live_hardware():
+            live = mountain.resolve_webcam_image(camera)
+            if live is not None:
+                return live
+
+        sim_paths = {
             "oil_pump": OBSERVER_HOME / "sim" / "webcams" / "oil_pump_latest.svg",
             "tcs": OBSERVER_HOME / "sim" / "webcams" / "tcs_latest.svg",
-            "flux_meter": self._flux_meter_image_path(),
+            "flux_meter": OBSERVER_HOME / "sim" / "webcams" / "flux_meter_latest.svg",
         }
-        path = mapping.get(camera)
+        path = sim_paths.get(camera)
         if path and path.exists():
             return path
-        self.fetch_webcam(camera)
-        path = mapping.get(camera)
-        return path if path and path.exists() else None
+
+        if not self._live_hardware():
+            self._run_sim_webcam(camera)
+            if path and path.exists():
+                return path
+
+        return None
+
+    def webcam_image_path(self, camera: str) -> Path | None:
+        path = self._resolve_webcam_image(camera)
+        if path is not None:
+            return path
+
+        if self._live_hardware():
+            self.fetch_webcam(camera)
+        else:
+            self._run_sim_webcam(camera)
+        return self._resolve_webcam_image(camera)
 
     def _flux_meter_image_path(self) -> Path:
         if self._live_hardware():
@@ -242,13 +280,22 @@ class ControlService:
         if not prefix:
             return ActionResult(False, "Exposure prefix is required.", {"status": self.status()})
 
-        data_dir = self._data_dir_for_today()
+        data_dir = mountain.find_data_dir_for_prefix(prefix) or self._data_dir_for_today()
         fits_path: Path | None = None
         message = ""
         ok = False
 
-        if self._live_hardware() and data_dir.exists():
-            ok, message, fits_path = mountain.run_make_mosaic(prefix, data_dir)
+        if self._live_hardware():
+            if data_dir.exists():
+                ok, message, fits_path = mountain.run_make_mosaic(prefix, data_dir)
+            else:
+                message = f"Data directory not found for prefix {prefix!r} under {LS4_DATA_DIR}."
+        elif data_dir.exists():
+            existing = mountain.find_existing_mosaic(prefix, data_dir)
+            if existing is not None:
+                ok = True
+                message = f"Using existing mosaic {existing.name} from {data_dir}."
+                fits_path = existing
 
         if fits_path is None:
             sim_ok, sim_message, sim_path = self._simulate_mosaic(prefix)
@@ -267,6 +314,7 @@ class ControlService:
             message,
             {
                 "prefix": prefix,
+                "data_dir": str(data_dir),
                 "mosaic_file": fits_path.name if fits_path else None,
                 "preview_ready": preview is not None and preview.exists(),
                 "status": self.status(),

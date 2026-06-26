@@ -6,7 +6,14 @@ import os
 import subprocess
 from pathlib import Path
 
-from config import FLUX_METER_SNAPSHOT_DIR, KENNETH_DIR, LS4_DATA_DIR, OBSERVER_HOME
+from config import (
+    FLUX_METER_SNAPSHOT_DIR,
+    KENNETH_DIR,
+    LS4_DATA_DIR,
+    OBSERVER_HOME,
+    OIL_PUMP_IMAGE_DIR,
+    TCS_WEBCAM_DIR,
+)
 
 
 def _latest_image(directory: Path, pattern: str) -> Path | None:
@@ -113,29 +120,105 @@ def run_stow_telescope() -> tuple[bool, str]:
     return result.returncode == 0, output
 
 
+def dated_data_dirs() -> list[Path]:
+    if not LS4_DATA_DIR.exists():
+        return []
+    return sorted(
+        [path for path in LS4_DATA_DIR.iterdir() if path.is_dir()],
+        key=lambda path: path.name,
+    )
+
+
+def find_data_dir_for_prefix(prefix: str) -> Path | None:
+    """Find the newest night directory containing exposures for this prefix."""
+    prefix = prefix.strip()
+    if not prefix:
+        return None
+
+    for directory in reversed(dated_data_dirs()):
+        matches = list(directory.glob(f"{prefix}*"))
+        if matches:
+            return directory
+
+    if LS4_DATA_DIR.exists() and list(LS4_DATA_DIR.glob(f"{prefix}*")):
+        return LS4_DATA_DIR
+
+    return None
+
+
+def find_existing_mosaic(prefix: str, data_dir: Path | None = None) -> Path | None:
+    """Return an existing mos_*.fits for this prefix if one is already on disk."""
+    prefix = prefix.strip()
+    search_dirs: list[Path] = []
+    if data_dir is not None:
+        search_dirs.append(data_dir)
+    search_dirs.extend(reversed(dated_data_dirs()))
+    if LS4_DATA_DIR.exists():
+        search_dirs.append(LS4_DATA_DIR)
+
+    seen: set[Path] = set()
+    patterns = (
+        f"mos_*{prefix}*.fits",
+        f"mos_*{prefix}*.fit",
+        "mos_*.fits",
+        "mos_*.fit",
+    )
+
+    for directory in search_dirs:
+        if directory in seen or not directory.exists():
+            continue
+        seen.add(directory)
+
+        for pattern in patterns[:2]:
+            matches = sorted(directory.glob(pattern), key=lambda path: path.stat().st_mtime)
+            if matches:
+                return matches[-1]
+
+    for directory in search_dirs:
+        if directory in seen or not directory.exists():
+            continue
+        for pattern in patterns[2:]:
+            matches = sorted(directory.glob(pattern), key=lambda path: path.stat().st_mtime)
+            if matches:
+                return matches[-1]
+
+    return None
+
+
 def run_make_mosaic(prefix: str, data_dir: Path | None = None) -> tuple[bool, str, Path | None]:
-    target_dir = data_dir or LS4_DATA_DIR
+    target_dir = data_dir or find_data_dir_for_prefix(prefix) or LS4_DATA_DIR
     if not target_dir.exists():
         return False, f"Data directory not found: {target_dir}", None
+
+    existing = find_existing_mosaic(prefix, target_dir)
+    if existing is not None:
+        return True, f"Using existing mosaic {existing.name} in {target_dir}.", existing
 
     result = _tcsh(f"cd {target_dir}; mos {prefix}", timeout=300)
     output = (result.stdout or "") + (result.stderr or "")
     output = output.strip() or f"mos {prefix} finished"
 
-    mosaics = sorted(target_dir.glob("mos_*.fits"), key=lambda path: path.stat().st_mtime)
-    if not mosaics:
-        return result.returncode == 0, output, None
-    return result.returncode == 0, output, mosaics[-1]
+    mosaic = find_existing_mosaic(prefix, target_dir)
+    if mosaic is not None:
+        return result.returncode == 0, output, mosaic
+
+    return result.returncode == 0, output, None
 
 
 def latest_flux_meter_snapshot() -> Path | None:
-    if not FLUX_METER_SNAPSHOT_DIR.exists():
-        return None
-    images = sorted(
-        FLUX_METER_SNAPSHOT_DIR.glob("*_cam3.jpg"),
-        key=lambda path: path.stat().st_mtime,
-    )
-    return images[-1] if images else None
+    return _latest_image(FLUX_METER_SNAPSHOT_DIR, "*_cam3.jpg")
+
+
+def latest_tcs_snapshot() -> Path | None:
+    return _latest_image(TCS_WEBCAM_DIR, "TCScam*.jpg")
+
+
+def latest_oil_pump_snapshot() -> Path | None:
+    for pattern in ("*oil*pump*.jpg", "*oil*pump*.png", "*manometer*.jpg", "*pressure*.jpg"):
+        image = _latest_image(OIL_PUMP_IMAGE_DIR, pattern)
+        if image is not None:
+            return image
+    return None
 
 
 def refresh_flux_meter() -> tuple[bool, str, Path | None]:
@@ -148,19 +231,34 @@ def refresh_flux_meter() -> tuple[bool, str, Path | None]:
 
 def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
     if camera == "tcs":
-        image = _latest_image(KENNETH_DIR, "TCScam*.jpg")
+        image = latest_tcs_snapshot()
         if image is not None:
             return True, f"TCS webcam loaded ({image.name}).", image
-        return _run_capture_script(KENNETH_DIR / "TCS_webcam.py", ["--camera", "tcs"])
+        ok, message, path = _run_capture_script(KENNETH_DIR / "TCS_webcam.py", ["--camera", "tcs"])
+        if ok and path is not None:
+            return ok, message, path
+        return False, message or f"No TCS images found in {TCS_WEBCAM_DIR}", None
 
     if camera == "oil_pump":
-        for pattern in ("*oil*pump*.jpg", "*oil*pump*.png", "*manometer*.jpg", "*pressure*.jpg"):
-            image = _latest_image(KENNETH_DIR, pattern)
-            if image is not None:
-                return True, f"Oil pump image loaded ({image.name}).", image
-        return _run_capture_script(KENNETH_DIR / "webpump_capture.py", ["--camera", "oil_pump"])
+        image = latest_oil_pump_snapshot()
+        if image is not None:
+            return True, f"Oil pump image loaded ({image.name}).", image
+        ok, message, path = _run_capture_script(KENNETH_DIR / "webpump_capture.py", ["--camera", "oil_pump"])
+        if ok and path is not None:
+            return ok, message, path
+        return False, message or f"No oil pump images found in {OIL_PUMP_IMAGE_DIR}", None
 
     return False, f"Unknown camera: {camera}", None
+
+
+def resolve_webcam_image(camera: str) -> Path | None:
+    if camera == "flux_meter":
+        return latest_flux_meter_snapshot()
+    if camera == "tcs":
+        return latest_tcs_snapshot()
+    if camera == "oil_pump":
+        return latest_oil_pump_snapshot()
+    return None
 
 
 def observer_home_ready() -> bool:
