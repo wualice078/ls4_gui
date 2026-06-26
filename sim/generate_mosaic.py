@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import os
 import time
 from pathlib import Path
 
-OBSERVER_HOME = Path(__file__).resolve().parents[2] / "observer-home"
-MOSAIC_DIR = OBSERVER_HOME / "sim" / "mosaics"
+_DEFAULT_HOME = Path(__file__).resolve().parents[2] / "observer-home"
+OBSERVER_HOME = Path(os.getenv("LS4_OBSERVER_HOME", str(_DEFAULT_HOME)))
+SIM_DIR = Path(os.getenv("LS4_SIM_DIR", str(OBSERVER_HOME / "sim")))
+MOSAIC_DIR = Path(os.getenv("LS4_MOSAIC_PREVIEW_DIR", str(SIM_DIR / "mosaics")))
 
 
 def _svg(prefix: str) -> str:

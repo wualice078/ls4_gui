@@ -13,11 +13,14 @@ from config import (
     AWS_SERVER_URL,
     DOME_TRANSITION_SECONDS,
     ENABLE_SCHEDULER_PAUSE,
+    GUI_PYTHON,
     LS4_DATA_DIR,
     MOSAIC_PREVIEW_DIR,
     OBSERVER_HOME,
     OPERATOR_PDU_OUTLETS,
     PDU_OUTLET_LABELS,
+    SIM_STATE_FILE,
+    SIM_WEBCAM_DIR,
     SIMULATE,
 )
 from services import mountain
@@ -34,7 +37,7 @@ class ActionResult:
 
 class ControlService:
     def __init__(self) -> None:
-        state_file = OBSERVER_HOME / "sim" / "state.json"
+        state_file = SIM_STATE_FILE
         self._sim = SimState(state_file, dome_transition_seconds=DOME_TRANSITION_SECONDS)
         self._last_webcam_fetch: dict[str, float] = {}
         self._last_webcam_path: dict[str, Path] = {}
@@ -53,10 +56,12 @@ class ControlService:
         if cam is None:
             return False, f"Unknown camera: {camera}", None
 
-        python = Path(os.environ.get("LS4_GUI_PYTHON", "/home/ls4/ls4_venv/bin/python"))
+        python = Path(os.environ.get("LS4_GUI_PYTHON", GUI_PYTHON))
         env = os.environ.copy()
         env["LS4_OBSERVER_HOME"] = str(OBSERVER_HOME)
-        (OBSERVER_HOME / "sim" / "webcams").mkdir(parents=True, exist_ok=True)
+        env["LS4_SIM_DIR"] = str(SIM_STATE_FILE.parent)
+        env["LS4_SIM_WEBCAM_DIR"] = str(SIM_WEBCAM_DIR)
+        SIM_WEBCAM_DIR.mkdir(parents=True, exist_ok=True)
         result = subprocess.run(
             [str(python), str(self._sim_webcam_script()), "--camera", cam],
             capture_output=True,
@@ -242,9 +247,9 @@ class ControlService:
                 return live
 
         sim_paths = {
-            "oil_pump": OBSERVER_HOME / "sim" / "webcams" / "oil_pump_latest.svg",
-            "tcs": OBSERVER_HOME / "sim" / "webcams" / "tcs_latest.svg",
-            "flux_meter": OBSERVER_HOME / "sim" / "webcams" / "flux_meter_latest.svg",
+            "oil_pump": SIM_WEBCAM_DIR / "oil_pump_latest.svg",
+            "tcs": SIM_WEBCAM_DIR / "tcs_latest.svg",
+            "flux_meter": SIM_WEBCAM_DIR / "flux_meter_latest.svg",
         }
         path = sim_paths.get(camera)
         if path and path.exists():
@@ -273,7 +278,7 @@ class ControlService:
             snapshot = mountain.latest_flux_meter_snapshot()
             if snapshot is not None:
                 return snapshot
-        return OBSERVER_HOME / "sim" / "webcams" / "flux_meter_latest.svg"
+        return SIM_WEBCAM_DIR / "flux_meter_latest.svg"
 
     def generate_mosaic(self, prefix: str) -> ActionResult:
         prefix = prefix.strip()
@@ -345,13 +350,17 @@ class ControlService:
 
     def _simulate_mosaic(self, prefix: str) -> tuple[bool, str, Path | None]:
         script = Path(__file__).resolve().parents[1] / "sim" / "generate_mosaic.py"
-        python = Path(os.environ.get("LS4_GUI_PYTHON", "/home/ls4/ls4_venv/bin/python"))
+        python = Path(os.environ.get("LS4_GUI_PYTHON", GUI_PYTHON))
         output = MOSAIC_PREVIEW_DIR / "mosaic_latest.svg"
+        env = os.environ.copy()
+        env["LS4_OBSERVER_HOME"] = str(OBSERVER_HOME)
+        env["LS4_MOSAIC_PREVIEW_DIR"] = str(MOSAIC_PREVIEW_DIR)
         result = subprocess.run(
             [str(python), str(script), prefix, "-o", str(output)],
             capture_output=True,
             text=True,
             timeout=60,
+            env=env,
         )
         if result.returncode != 0:
             output_text = (result.stdout or "") + (result.stderr or "")

@@ -5,10 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
-STATE_FILE = Path(__file__).resolve().parents[2] / "observer-home" / "sim" / "state.json"
+_DEFAULT_HOME = Path(__file__).resolve().parents[2] / "observer-home"
+OBSERVER_HOME = Path(os.getenv("LS4_OBSERVER_HOME", str(_DEFAULT_HOME)))
+SIM_DIR = Path(os.getenv("LS4_SIM_DIR", str(OBSERVER_HOME / "sim")))
+STATE_FILE = Path(os.getenv("LS4_SIM_STATE_FILE", str(SIM_DIR / "state.json")))
 OPERATOR_PDU_OUTLETS = (1, 2, 3, 4, 8)
 
 

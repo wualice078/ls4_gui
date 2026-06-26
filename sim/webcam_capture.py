@@ -11,8 +11,9 @@ from pathlib import Path
 
 _DEFAULT_HOME = Path(__file__).resolve().parents[2] / "observer-home"
 OBSERVER_HOME = Path(os.getenv("LS4_OBSERVER_HOME", str(_DEFAULT_HOME)))
-STATE_FILE = OBSERVER_HOME / "sim" / "state.json"
-WEBCAM_DIR = OBSERVER_HOME / "sim" / "webcams"
+SIM_DIR = Path(os.getenv("LS4_SIM_DIR", str(OBSERVER_HOME / "sim")))
+STATE_FILE = Path(os.getenv("LS4_SIM_STATE_FILE", str(SIM_DIR / "state.json")))
+WEBCAM_DIR = Path(os.getenv("LS4_SIM_WEBCAM_DIR", str(SIM_DIR / "webcams")))
 
 
 def _load_state() -> dict:

@@ -8,11 +8,17 @@ from pathlib import Path
 
 from config import (
     FLUX_METER_SNAPSHOT_DIR,
+    GUI_PYTHON,
     KENNETH_DIR,
     LS4_DATA_DIR,
     OBSERVER_HOME,
+    OBSERVER_TCSHRC,
+    OBS_CONTROL_SCRIPT,
+    OIL_PUMP_CAPTURE_SCRIPT,
     OIL_PUMP_IMAGE_DIR,
+    PDU_SCRIPT,
     TCS_WEBCAM_DIR,
+    TCS_WEBCAM_SCRIPT,
 )
 
 
@@ -30,7 +36,7 @@ def _run_capture_script(script: Path, args: list[str]) -> tuple[bool, str, Path 
     if not script.exists():
         return False, f"Script not found: {script}", None
 
-    python = os.environ.get("LS4_GUI_PYTHON", "/home/ls4/ls4_venv/bin/python")
+    python = os.environ.get("LS4_GUI_PYTHON", GUI_PYTHON)
     result = subprocess.run(
         [python, str(script), *args],
         capture_output=True,
@@ -50,7 +56,7 @@ def _run_capture_script(script: Path, args: list[str]) -> tuple[bool, str, Path 
 def _tcsh(command: str, timeout: int = 120) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["LS4_ROOT"] = str(OBSERVER_HOME)
-    shell = f"cd {OBSERVER_HOME}; source {OBSERVER_HOME}/.tcshrc; {command}"
+    shell = f"cd {OBSERVER_HOME}; source {OBSERVER_TCSHRC}; {command}"
     return subprocess.run(
         ["tcsh", "-fc", shell],
         capture_output=True,
@@ -101,9 +107,9 @@ def run_closedome() -> tuple[bool, str]:
 
 def run_pdu(outlet: int, powered: bool) -> tuple[bool, str]:
     flag = "-p" if powered else "-o"
-    pdu = KENNETH_DIR / "pdu_api.py"
+    pdu = PDU_SCRIPT
     result = subprocess.run(
-        [str(Path(os.environ.get("LS4_GUI_PYTHON", "/home/ls4/ls4_venv/bin/python"))), str(pdu), flag, str(outlet)],
+        [str(Path(os.environ.get("LS4_GUI_PYTHON", GUI_PYTHON))), str(pdu), flag, str(outlet)],
         capture_output=True,
         text=True,
         timeout=30,
@@ -234,7 +240,7 @@ def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
         image = latest_tcs_snapshot()
         if image is not None:
             return True, f"TCS webcam loaded ({image.name}).", image
-        ok, message, path = _run_capture_script(KENNETH_DIR / "TCS_webcam.py", ["--camera", "tcs"])
+        ok, message, path = _run_capture_script(TCS_WEBCAM_SCRIPT, ["--camera", "tcs"])
         if ok and path is not None:
             return ok, message, path
         return False, message or f"No TCS images found in {TCS_WEBCAM_DIR}", None
@@ -243,7 +249,7 @@ def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
         image = latest_oil_pump_snapshot()
         if image is not None:
             return True, f"Oil pump image loaded ({image.name}).", image
-        ok, message, path = _run_capture_script(KENNETH_DIR / "webpump_capture.py", ["--camera", "oil_pump"])
+        ok, message, path = _run_capture_script(OIL_PUMP_CAPTURE_SCRIPT, ["--camera", "oil_pump"])
         if ok and path is not None:
             return ok, message, path
         return False, message or f"No oil pump images found in {OIL_PUMP_IMAGE_DIR}", None
@@ -262,4 +268,4 @@ def resolve_webcam_image(camera: str) -> Path | None:
 
 
 def observer_home_ready() -> bool:
-    return (OBSERVER_HOME / ".tcshrc").exists() and (OBSERVER_HOME / "bin" / "obs_control_script").exists()
+    return OBSERVER_TCSHRC.exists() and OBS_CONTROL_SCRIPT.exists()
