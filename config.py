@@ -78,3 +78,5 @@ ENABLE_SCHEDULER_PAUSE = os.getenv("LS4_ENABLE_SCHEDULER_PAUSE", "false").lower(
     "true",
     "yes",
 }
+
+DEBUG = os.getenv("LS4_GUI_DEBUG", "false").lower() in {"1", "true", "yes"}

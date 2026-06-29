@@ -26,6 +26,7 @@ from config import (
     SECRET_KEY,
     SIMULATE,
     WEBCAM_REFRESH_SECONDS,
+    DEBUG,
 )
 from services import control
 
@@ -239,5 +240,5 @@ def api_mosaic_image():
 
 
 if __name__ == "__main__":
-    print(f"LS4 GUI starting on http://{HOST}:{PORT} (simulate={SIMULATE})")
-    app.run(host=HOST, port=PORT, debug=True)
+    print(f"LS4 GUI starting on http://{HOST}:{PORT} (simulate={SIMULATE}, debug={DEBUG})")
+    app.run(host=HOST, port=PORT, debug=DEBUG)
