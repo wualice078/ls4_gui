@@ -16,7 +16,9 @@ from config import (
     OBS_CONTROL_SCRIPT,
     OIL_PUMP_CAPTURE_SCRIPT,
     OIL_PUMP_IMAGE_DIR,
+    OIL_PUMP_RENDER_OUTPUT,
     PDU_SCRIPT,
+    SIM_WEBCAM_DIR,
     TCS_WEBCAM_DIR,
     TCS_WEBCAM_SCRIPT,
 )
@@ -224,7 +226,26 @@ def latest_oil_pump_snapshot() -> Path | None:
         image = _latest_image(OIL_PUMP_IMAGE_DIR, pattern)
         if image is not None:
             return image
+    for candidate in (OIL_PUMP_RENDER_OUTPUT, SIM_WEBCAM_DIR / "oil_pump_latest.svg"):
+        if candidate.exists():
+            return candidate
     return None
+
+
+def refresh_oil_pump() -> tuple[bool, str, Path | None]:
+    image = latest_oil_pump_snapshot()
+    if image is not None and image.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+        return True, f"Oil pump image loaded ({image.name}).", image
+
+    ok, message, path = _run_capture_script(OIL_PUMP_CAPTURE_SCRIPT, [])
+    if path is not None and path.exists():
+        return True, message or f"Oil pump pressure rendered ({path.name}).", path
+
+    stale = latest_oil_pump_snapshot()
+    if stale is not None:
+        return True, f"{message} Showing last rendered gauge ({stale.name}).", stale
+
+    return False, message or "Oil pump pressure gauge unavailable.", None
 
 
 def refresh_flux_meter() -> tuple[bool, str, Path | None]:
@@ -246,13 +267,7 @@ def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
         return False, message or f"No TCS images found in {TCS_WEBCAM_DIR}", None
 
     if camera == "oil_pump":
-        image = latest_oil_pump_snapshot()
-        if image is not None:
-            return True, f"Oil pump image loaded ({image.name}).", image
-        ok, message, path = _run_capture_script(OIL_PUMP_CAPTURE_SCRIPT, ["--camera", "oil_pump"])
-        if ok and path is not None:
-            return ok, message, path
-        return False, message or f"No oil pump images found in {OIL_PUMP_IMAGE_DIR}", None
+        return refresh_oil_pump()
 
     return False, f"Unknown camera: {camera}", None
 
