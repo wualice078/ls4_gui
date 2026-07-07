@@ -36,6 +36,10 @@ FLUX_METER_SNAPSHOT_DIR = _path("LS4_FLUX_METER_SNAPSHOT_DIR", "/home/ls4/snapsh
 TCS_WEBCAM_DIR = _path("LS4_TCS_WEBCAM_DIR", str(KENNETH_DIR))
 OIL_PUMP_IMAGE_DIR = _path("LS4_OIL_PUMP_IMAGE_DIR", "/home/ls4/snapshots")
 OIL_PUMP_CAM_TAG = os.getenv("LS4_OIL_PUMP_CAM_TAG", "cam2")
+OIL_PUMP_SYNC_ENABLED = os.getenv("LS4_OIL_PUMP_SYNC_ENABLED", "false").lower() in {"1", "true", "yes"}
+OIL_PUMP_REMOTE_HOST = os.getenv("LS4_OIL_PUMP_REMOTE_HOST", "")
+OIL_PUMP_REMOTE_DIR = _path("LS4_OIL_PUMP_REMOTE_DIR", "/home/ls4/snapshots")
+OIL_PUMP_SSH_KEY = _path("LS4_OIL_PUMP_SSH_KEY", str(OBSERVER_HOME / ".ssh" / "id_ed25519_ls4snap"))
 READ_PRESSURE_SCRIPT = _path("LS4_READ_PRESSURE_SCRIPT", str(KENNETH_DIR / "read_pressure.py"))
 PRESSURE_LOG_FILE = _path("LS4_PRESSURE_LOG_FILE", str(KENNETH_DIR / "pressure_log.txt"))
 

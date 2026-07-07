@@ -17,7 +17,11 @@ from config import (
     OIL_PUMP_CAPTURE_SCRIPT,
     OIL_PUMP_CAM_TAG,
     OIL_PUMP_IMAGE_DIR,
+    OIL_PUMP_REMOTE_DIR,
+    OIL_PUMP_REMOTE_HOST,
     OIL_PUMP_RENDER_OUTPUT,
+    OIL_PUMP_SSH_KEY,
+    OIL_PUMP_SYNC_ENABLED,
     PDU_SCRIPT,
     SIM_WEBCAM_DIR,
     TCS_WEBCAM_DIR,
@@ -243,9 +247,54 @@ def latest_oil_pump_snapshot() -> Path | None:
     return None
 
 
+def sync_oil_pump_snapshots() -> tuple[bool, str]:
+    if not OIL_PUMP_SYNC_ENABLED:
+        return False, "Oil pump remote sync disabled."
+    if not OIL_PUMP_REMOTE_HOST:
+        return False, "Oil pump remote host not configured."
+    if not OIL_PUMP_SSH_KEY.exists():
+        return False, f"Oil pump SSH key not found: {OIL_PUMP_SSH_KEY}"
+
+    OIL_PUMP_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    include_pattern = f"*_{OIL_PUMP_CAM_TAG}.jpg"
+    ssh_opts = (
+        f"ssh -i {OIL_PUMP_SSH_KEY} "
+        "-o BatchMode=yes "
+        "-o StrictHostKeyChecking=accept-new"
+    )
+    result = subprocess.run(
+        [
+            "rsync",
+            "-az",
+            "--include",
+            "*/",
+            "--include",
+            include_pattern,
+            "--exclude",
+            "*",
+            "-e",
+            ssh_opts,
+            f"{OIL_PUMP_REMOTE_HOST}:{OIL_PUMP_REMOTE_DIR}/",
+            f"{OIL_PUMP_IMAGE_DIR}/",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        cwd=OBSERVER_HOME,
+    )
+    if result.returncode != 0:
+        output = ((result.stderr or "") + (result.stdout or "")).strip()
+        return False, output or "Oil pump snapshot sync failed."
+
+    return True, f"Synchronized oil pump snapshots ({include_pattern})."
+
+
 def refresh_oil_pump() -> tuple[bool, str, Path | None]:
+    sync_ok, sync_message = sync_oil_pump_snapshots()
     image = latest_oil_pump_snapshot()
     if image is not None and image.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+        if sync_ok:
+            return True, f"Oil pump image loaded ({image.name}). {sync_message}", image
         return True, f"Oil pump image loaded ({image.name}).", image
 
     ok, message, path = _run_capture_script(OIL_PUMP_CAPTURE_SCRIPT, [])
@@ -254,6 +303,8 @@ def refresh_oil_pump() -> tuple[bool, str, Path | None]:
 
     stale = latest_oil_pump_snapshot()
     if stale is not None:
+        if sync_ok:
+            return True, f"{message} {sync_message} Showing last rendered gauge ({stale.name}).", stale
         return True, f"{message} Showing last rendered gauge ({stale.name}).", stale
 
     return False, message or "Oil pump pressure gauge unavailable.", None
