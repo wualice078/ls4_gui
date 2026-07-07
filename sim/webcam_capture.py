@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate simulated webcam snapshots for TCS servos and oil pump manometer."""
+"""Generate simulated webcam snapshots for LS4 camera panels."""
 
 from __future__ import annotations
 
@@ -68,9 +68,17 @@ def capture_flux_cam(state: dict, output: Path | None) -> Path:
     return _write_image(path, _svg("Flux Meter Camera", subtitle, accent))
 
 
+def capture_dome(state: dict, output: Path | None) -> Path:
+    dome_open = state.get("dome", {}).get("state") == "open"
+    subtitle = "Dome OPEN" if dome_open else "Dome CLOSED"
+    accent = "#22c55e" if dome_open else "#f59e0b"
+    path = output or WEBCAM_DIR / "dome_latest.svg"
+    return _write_image(path, _svg("Dome Camera", subtitle, accent))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--camera", choices=["tcs", "oil_pump", "flux"], default="tcs")
+    parser.add_argument("--camera", choices=["tcs", "oil_pump", "flux", "dome"], default="tcs")
     parser.add_argument("-o", "--output")
     args = parser.parse_args()
 
@@ -81,6 +89,8 @@ def main() -> int:
         path = capture_tcs(state, output)
     elif args.camera == "oil_pump":
         path = capture_oil_pump(state, output)
+    elif args.camera == "dome":
+        path = capture_dome(state, output)
     else:
         path = capture_flux_cam(state, output)
 
