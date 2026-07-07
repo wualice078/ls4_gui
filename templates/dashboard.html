@@ -62,11 +62,13 @@
     <div class="panel-header">
       <h2>Dome</h2>
     </div>
+    <img id="dome-image" src="{{ url_for('api_webcam_image', camera='dome') }}" alt="Dome camera">
     <div class="button-row">
       <button class="btn btn-success" data-action="dome" data-value="open">Open dome</button>
       <button class="btn btn-danger" data-action="dome" data-value="close">Close dome</button>
+      <button class="btn btn-secondary" data-webcam="dome">Refresh dome view</button>
     </div>
-    <p class="muted small">Open only after meteo checks and webcam verification.</p>
+    <p class="muted small">Open only after meteo checks and webcam verification. Dome view uses cam1 snapshots by default.</p>
   </article>
 
   <article class="panel">

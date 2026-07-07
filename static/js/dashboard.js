@@ -51,6 +51,7 @@ function refreshWebcam(camera) {
     oil_pump: "oil-pump-image",
     tcs: "tcs-image",
     flux_meter: "flux-meter-image",
+    dome: "dome-image",
   };
   const image = document.getElementById(imageIds[camera]);
   if (!image) return Promise.resolve();
@@ -106,6 +107,7 @@ document.addEventListener("click", async (event) => {
 
 document.getElementById("refresh-all-webcams")?.addEventListener("click", async () => {
   await Promise.all([
+    refreshWebcam("dome"),
     refreshWebcam("flux_meter"),
     refreshWebcam("oil_pump"),
     refreshWebcam("tcs"),
@@ -132,6 +134,7 @@ document.getElementById("mosaic-form")?.addEventListener("submit", async (event)
 
 const refreshSeconds = window.LS4_GUI?.refreshSeconds || 30;
 window.setInterval(() => {
+  refreshWebcam("dome");
   refreshWebcam("flux_meter");
   refreshWebcam("oil_pump");
   refreshWebcam("tcs");

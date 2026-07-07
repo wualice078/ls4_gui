@@ -7,6 +7,8 @@ import subprocess
 from pathlib import Path
 
 from config import (
+    DOME_CAM_TAG,
+    DOME_IMAGE_DIR,
     FLUX_METER_SNAPSHOT_DIR,
     GUI_PYTHON,
     KENNETH_DIR,
@@ -226,6 +228,17 @@ def latest_tcs_snapshot() -> Path | None:
     return _latest_image(TCS_WEBCAM_DIR, "TCScam*.jpg")
 
 
+def latest_dome_snapshot() -> Path | None:
+    tagged = _latest_image(DOME_IMAGE_DIR, f"*_{DOME_CAM_TAG}.jpg")
+    if tagged is not None:
+        return tagged
+    for cam_tag in ("cam1", "cam2", "cam3"):
+        image = _latest_image(DOME_IMAGE_DIR, f"*_{cam_tag}.jpg")
+        if image is not None:
+            return image
+    return None
+
+
 def latest_oil_pump_snapshot() -> Path | None:
     tagged = _latest_image(OIL_PUMP_IMAGE_DIR, f"*_{OIL_PUMP_CAM_TAG}.jpg")
     if tagged is not None:
@@ -319,6 +332,12 @@ def refresh_flux_meter() -> tuple[bool, str, Path | None]:
 
 
 def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
+    if camera == "dome":
+        image = latest_dome_snapshot()
+        if image is not None:
+            return True, f"Dome camera loaded ({image.name}).", image
+        return False, f"No dome images found in {DOME_IMAGE_DIR}", None
+
     if camera == "tcs":
         image = latest_tcs_snapshot()
         if image is not None:
@@ -335,6 +354,8 @@ def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
 
 
 def resolve_webcam_image(camera: str) -> Path | None:
+    if camera == "dome":
+        return latest_dome_snapshot()
     if camera == "flux_meter":
         return latest_flux_meter_snapshot()
     if camera == "tcs":

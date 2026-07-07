@@ -182,7 +182,7 @@ def api_webcam(camera: str):
 def api_webcam_image(camera: str):
     from flask import Response, send_file
 
-    allowed = {"oil_pump", "tcs", "flux_meter"}
+    allowed = {"oil_pump", "tcs", "flux_meter", "dome"}
     if camera not in allowed:
         return jsonify({"ok": False, "message": f"Unknown camera: {camera}"}), 404
 
@@ -195,6 +195,7 @@ def api_webcam_image(camera: str):
         "oil_pump": "Oil Pump Webcam",
         "tcs": "TCS Webcam",
         "flux_meter": "Flux Meter Camera",
+        "dome": "Dome Camera",
     }
     mode = "SIMULATED" if SIMULATE else "LIVE"
     label = labels[camera]
