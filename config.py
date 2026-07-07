@@ -34,7 +34,8 @@ LS4_DATA_DIR = _path("LS4_DATA_DIR", "/data/observer")
 
 FLUX_METER_SNAPSHOT_DIR = _path("LS4_FLUX_METER_SNAPSHOT_DIR", "/home/ls4/snapshots")
 TCS_WEBCAM_DIR = _path("LS4_TCS_WEBCAM_DIR", str(KENNETH_DIR))
-OIL_PUMP_IMAGE_DIR = _path("LS4_OIL_PUMP_IMAGE_DIR", str(KENNETH_DIR))
+OIL_PUMP_IMAGE_DIR = _path("LS4_OIL_PUMP_IMAGE_DIR", "/home/ls4/snapshots")
+OIL_PUMP_CAM_TAG = os.getenv("LS4_OIL_PUMP_CAM_TAG", "cam2")
 READ_PRESSURE_SCRIPT = _path("LS4_READ_PRESSURE_SCRIPT", str(KENNETH_DIR / "read_pressure.py"))
 PRESSURE_LOG_FILE = _path("LS4_PRESSURE_LOG_FILE", str(KENNETH_DIR / "pressure_log.txt"))
 

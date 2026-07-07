@@ -15,6 +15,7 @@ from config import (
     OBSERVER_TCSHRC,
     OBS_CONTROL_SCRIPT,
     OIL_PUMP_CAPTURE_SCRIPT,
+    OIL_PUMP_CAM_TAG,
     OIL_PUMP_IMAGE_DIR,
     OIL_PUMP_RENDER_OUTPUT,
     PDU_SCRIPT,
@@ -222,6 +223,16 @@ def latest_tcs_snapshot() -> Path | None:
 
 
 def latest_oil_pump_snapshot() -> Path | None:
+    tagged = _latest_image(OIL_PUMP_IMAGE_DIR, f"*_{OIL_PUMP_CAM_TAG}.jpg")
+    if tagged is not None:
+        return tagged
+
+    # Fallback order for deployments where camera mapping differs.
+    for cam_tag in ("cam2", "cam1", "cam3"):
+        image = _latest_image(OIL_PUMP_IMAGE_DIR, f"*_{cam_tag}.jpg")
+        if image is not None:
+            return image
+
     for pattern in ("*oil*pump*.jpg", "*oil*pump*.png", "*manometer*.jpg", "*pressure*.jpg"):
         image = _latest_image(OIL_PUMP_IMAGE_DIR, pattern)
         if image is not None:
