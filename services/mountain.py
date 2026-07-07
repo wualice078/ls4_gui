@@ -9,6 +9,10 @@ from pathlib import Path
 from config import (
     DOME_CAM_TAG,
     DOME_IMAGE_DIR,
+    DOME_REMOTE_DIR,
+    DOME_REMOTE_HOST,
+    DOME_SSH_KEY,
+    DOME_SYNC_ENABLED,
     FLUX_METER_SNAPSHOT_DIR,
     GUI_PYTHON,
     KENNETH_DIR,
@@ -260,18 +264,27 @@ def latest_oil_pump_snapshot() -> Path | None:
     return None
 
 
-def sync_oil_pump_snapshots() -> tuple[bool, str]:
-    if not OIL_PUMP_SYNC_ENABLED:
-        return False, "Oil pump remote sync disabled."
-    if not OIL_PUMP_REMOTE_HOST:
-        return False, "Oil pump remote host not configured."
-    if not OIL_PUMP_SSH_KEY.exists():
-        return False, f"Oil pump SSH key not found: {OIL_PUMP_SSH_KEY}"
+def _sync_snapshot_images(
+    *,
+    enabled: bool,
+    remote_host: str,
+    remote_dir: Path,
+    ssh_key: Path,
+    image_dir: Path,
+    cam_tag: str,
+    label: str,
+) -> tuple[bool, str]:
+    if not enabled:
+        return False, f"{label} remote sync disabled."
+    if not remote_host:
+        return False, f"{label} remote host not configured."
+    if not ssh_key.exists():
+        return False, f"{label} SSH key not found: {ssh_key}"
 
-    OIL_PUMP_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-    include_pattern = f"*_{OIL_PUMP_CAM_TAG}.jpg"
+    image_dir.mkdir(parents=True, exist_ok=True)
+    include_pattern = f"*_{cam_tag}.jpg"
     ssh_opts = (
-        f"ssh -i {OIL_PUMP_SSH_KEY} "
+        f"ssh -i {ssh_key} "
         "-o BatchMode=yes "
         "-o StrictHostKeyChecking=accept-new"
     )
@@ -287,8 +300,8 @@ def sync_oil_pump_snapshots() -> tuple[bool, str]:
             "*",
             "-e",
             ssh_opts,
-            f"{OIL_PUMP_REMOTE_HOST}:{OIL_PUMP_REMOTE_DIR}/",
-            f"{OIL_PUMP_IMAGE_DIR}/",
+            f"{remote_host}:{remote_dir}/",
+            f"{image_dir}/",
         ],
         capture_output=True,
         text=True,
@@ -297,9 +310,33 @@ def sync_oil_pump_snapshots() -> tuple[bool, str]:
     )
     if result.returncode != 0:
         output = ((result.stderr or "") + (result.stdout or "")).strip()
-        return False, output or "Oil pump snapshot sync failed."
+        return False, output or f"{label} snapshot sync failed."
 
-    return True, f"Synchronized oil pump snapshots ({include_pattern})."
+    return True, f"Synchronized {label.lower()} snapshots ({include_pattern})."
+
+
+def sync_dome_snapshots() -> tuple[bool, str]:
+    return _sync_snapshot_images(
+        enabled=DOME_SYNC_ENABLED,
+        remote_host=DOME_REMOTE_HOST,
+        remote_dir=DOME_REMOTE_DIR,
+        ssh_key=DOME_SSH_KEY,
+        image_dir=DOME_IMAGE_DIR,
+        cam_tag=DOME_CAM_TAG,
+        label="Dome",
+    )
+
+
+def sync_oil_pump_snapshots() -> tuple[bool, str]:
+    return _sync_snapshot_images(
+        enabled=OIL_PUMP_SYNC_ENABLED,
+        remote_host=OIL_PUMP_REMOTE_HOST,
+        remote_dir=OIL_PUMP_REMOTE_DIR,
+        ssh_key=OIL_PUMP_SSH_KEY,
+        image_dir=OIL_PUMP_IMAGE_DIR,
+        cam_tag=OIL_PUMP_CAM_TAG,
+        label="Oil pump",
+    )
 
 
 def refresh_oil_pump() -> tuple[bool, str, Path | None]:
@@ -333,10 +370,13 @@ def refresh_flux_meter() -> tuple[bool, str, Path | None]:
 
 def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
     if camera == "dome":
+        sync_ok, sync_message = sync_dome_snapshots()
         image = latest_dome_snapshot()
         if image is not None:
+            if sync_ok:
+                return True, f"Dome camera loaded ({image.name}). {sync_message}", image
             return True, f"Dome camera loaded ({image.name}).", image
-        return False, f"No dome images found in {DOME_IMAGE_DIR}", None
+        return False, f"{sync_message} No dome images found in {DOME_IMAGE_DIR}", None
 
     if camera == "tcs":
         image = latest_tcs_snapshot()
