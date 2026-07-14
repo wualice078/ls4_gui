@@ -118,6 +118,14 @@ class ControlService:
         }
 
     def open_dome(self) -> ActionResult:
+        status = self.status()
+        if status.get("telescope_services") != "running":
+            return ActionResult(
+                False,
+                "Start questctl before opening the dome.",
+                {"status": status},
+            )
+
         ok, message = self._sim.request_dome("open")
         if self._live_hardware():
             stack_ok, stack_msg = mountain.run_opendome_raw()
@@ -172,11 +180,25 @@ class ControlService:
         return ActionResult(True, "Telescope services stopped (simulated).", {"status": self.status()})
 
     def stow_telescope(self) -> ActionResult:
+        # End-of-night stow parks the telescope and closes the dome.
         if self._live_hardware():
             ok, message = mountain.run_stow_telescope()
-            return ActionResult(ok, message, {"status": self.status()})
+            if not ok:
+                return ActionResult(ok, message, {"status": self.status()})
+            close_ok, close_msg = mountain.run_closedome()
+            self._sim.request_dome("closed")
+            if close_ok:
+                message = f"{message} Dome close: {close_msg}"
+            else:
+                message = f"{message} (dome close note: {close_msg[:200]})"
+            return ActionResult(True, message, {"status": self.status()})
 
-        return ActionResult(True, "Telescope stowed (simulated).", {"status": self.status()})
+        self._sim.request_dome("closed")
+        return ActionResult(
+            True,
+            "Telescope stowed and dome closed (simulated).",
+            {"status": self.status()},
+        )
 
     @staticmethod
     def _operator_pdu_status(all_outlets: dict[str, str]) -> dict[str, str]:

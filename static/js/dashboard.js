@@ -53,9 +53,20 @@ function updateStatus(status) {
     if (!running) {
       stopQuestctl.title = "Start questctl before you can stop it";
     } else if (domeOpen) {
-      stopQuestctl.title = "Close the dome before stopping questctl";
+      stopQuestctl.title = "Close the dome (or stow) before stopping questctl";
     } else {
       stopQuestctl.removeAttribute("title");
+    }
+  }
+
+  const openDome = document.getElementById("open-dome-btn");
+  if (openDome) {
+    const running = status.telescope_services === "running";
+    openDome.disabled = !running;
+    if (running) {
+      openDome.removeAttribute("title");
+    } else {
+      openDome.title = "Start questctl first";
     }
   }
 

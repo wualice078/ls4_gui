@@ -78,11 +78,17 @@
     </div>
     <img id="dome-image" src="{{ url_for('api_webcam_image', camera='dome') }}" alt="Dome camera (cam1)">
     <div class="button-row">
-      <button class="btn btn-success" data-action="dome" data-value="open">Open dome</button>
+      <button
+        class="btn btn-success"
+        id="open-dome-btn"
+        data-action="dome"
+        data-value="open"
+        {% if status.telescope_services != 'running' %}disabled title="Start questctl first"{% endif %}
+      >Open dome</button>
       <button class="btn btn-danger" data-action="dome" data-value="close">Close dome</button>
       <button class="btn btn-secondary" data-webcam="dome">Refresh dome view</button>
     </div>
-    <p class="muted small">Open only after meteo checks and webcam verification. Primary dome view uses nuc cam1.</p>
+    <p class="muted small">Open only after questctl is running and preflight checks pass. Close is for mid-night abort; end of night use Stow (parks + closes).</p>
   </article>
 
   <article class="panel">
@@ -130,7 +136,7 @@
       <button class="btn btn-warning" data-action="telescope" data-value="stow">Stow telescope</button>
     </div>
     <p class="muted small">
-      After the last readout: stop observing → close dome → stow telescope → check webcams → then stop questctl.
+      After the last readout: stop observing → stow telescope (parks + closes dome) → check webcams → then stop questctl.
     </p>
   </article>
 
