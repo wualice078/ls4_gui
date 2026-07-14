@@ -313,26 +313,32 @@ def _sync_snapshot_images(
         "-o BatchMode=yes "
         "-o StrictHostKeyChecking=accept-new"
     )
-    result = subprocess.run(
-        [
-            "rsync",
-            "-az",
-            "--include",
-            "*/",
-            "--include",
-            include_pattern,
-            "--exclude",
-            "*",
-            "-e",
-            ssh_opts,
-            f"{remote_host}:{remote_dir}/",
-            f"{image_dir}/",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        cwd=OBSERVER_HOME,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "rsync",
+                "-az",
+                "--include",
+                "*/",
+                "--include",
+                include_pattern,
+                "--exclude",
+                "*",
+                "-e",
+                ssh_opts,
+                f"{remote_host}:{remote_dir}/",
+                f"{image_dir}/",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=45,
+            cwd=OBSERVER_HOME,
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"{label} snapshot sync timed out."
+    except OSError as exc:
+        return False, f"{label} snapshot sync failed: {exc}"
+
     if result.returncode != 0:
         output = ((result.stderr or "") + (result.stdout or "")).strip()
         return False, output or f"{label} snapshot sync failed."

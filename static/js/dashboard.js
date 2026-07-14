@@ -12,6 +12,7 @@ async function postAction(url, body) {
     method: "POST",
     headers: {
       "X-Requested-With": "XMLHttpRequest",
+      Accept: "application/json",
     },
   };
   if (body) {
@@ -20,7 +21,16 @@ async function postAction(url, body) {
   }
 
   const response = await fetch(url, options);
-  const data = await response.json();
+  const text = await response.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (_err) {
+    const hint = text.trim().startsWith("<!")
+      ? "Server returned HTML instead of JSON (login page or crash). Re-login or check Flask logs."
+      : `Invalid JSON response (${response.status}).`;
+    throw new Error(hint);
+  }
   if (!response.ok && !data.message) {
     throw new Error(`Request failed (${response.status})`);
   }
@@ -74,20 +84,26 @@ function refreshWebcam(camera) {
   const image = document.getElementById(imageIds[camera]);
   if (!image) return Promise.resolve();
 
-  image.src = `/api/webcam/${camera}/image?ts=${Date.now()}`;
-  return postAction(`/api/webcam/${camera}`).then((data) => {
-    showToast(data.message, data.ok);
-    if (data.status) updateStatus(data.status);
-    const meta = document.getElementById(metaIds[camera]);
-    if (meta) {
-      if (data.image_captured_at) {
-        meta.textContent = `Captured: ${data.image_captured_at}`;
-      } else {
-        meta.textContent = data.ok ? "Captured: unknown" : "Captured: —";
+  return postAction(`/api/webcam/${camera}`)
+    .then((data) => {
+      showToast(data.message, data.ok);
+      if (data.status) updateStatus(data.status);
+      // Reload image after sync so the newest file is shown.
+      image.src = `/api/webcam/${camera}/image?ts=${Date.now()}`;
+      const meta = document.getElementById(metaIds[camera]);
+      if (meta) {
+        if (data.image_captured_at) {
+          meta.textContent = `Captured: ${data.image_captured_at}`;
+        } else {
+          meta.textContent = data.ok ? "Captured: unknown" : "Captured: —";
+        }
       }
-    }
-    return data;
-  });
+      return data;
+    })
+    .catch((error) => {
+      showToast(error.message || "Webcam refresh failed", false);
+      throw error;
+    });
 }
 
 function refreshMosaicImage() {

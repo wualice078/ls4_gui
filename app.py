@@ -40,10 +40,28 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if not session.get("logged_in"):
+            wants_json = (
+                request.path.startswith("/api/")
+                or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                or request.accept_mimetypes.best == "application/json"
+            )
+            if wants_json:
+                return jsonify({"ok": False, "message": "Login required."}), 401
             return redirect(url_for("login", next=request.path))
         return view(*args, **kwargs)
 
     return wrapped
+
+
+@app.errorhandler(Exception)
+def api_unhandled_error(exc):
+    from werkzeug.exceptions import HTTPException
+
+    if isinstance(exc, HTTPException):
+        return exc
+    if request.path.startswith("/api/"):
+        return jsonify({"ok": False, "message": f"Server error: {exc}"}), 500
+    raise exc
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -196,9 +214,9 @@ def api_webcam_image(camera: str):
     labels = {
         "oil_pump": "Oil Pump Manometer",
         "tcs": "TCS Servos",
-        "flux_meter": "Flux Meter Camera (cam3)",
-        "dome": "Dome Camera (cam1)",
-        "aux": "Secondary Dome Camera (cam2)",
+        "flux_meter": "Flux Meter Camera",
+        "dome": "Dome Camera",
+        "aux": "Secondary Dome Camera",
     }
     mode = "SIMULATED" if SIMULATE else "LIVE"
     label = labels[camera]
