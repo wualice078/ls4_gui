@@ -29,9 +29,13 @@
     <div class="webcam-grid three-col">
       <div class="webcam-card">
         <h3>Flux meter</h3>
-        <p class="muted small">Turn on outlet 8, verify mercury level, then turn outlet 8 off.</p>
+        <p class="muted small">Turn on the light (outlet 8), verify mercury is at/above the mark, then turn the light off.</p>
         <img id="flux-meter-image" src="{{ url_for('api_webcam_image', camera='flux_meter') }}" alt="Flux meter camera">
-        <button class="btn" data-webcam="flux_meter">Refresh</button>
+        <div class="button-row compact">
+          <button class="btn btn-success btn-small" data-action="pdu" data-outlet="8" data-value="on">Light on</button>
+          <button class="btn btn-secondary btn-small" data-action="pdu" data-outlet="8" data-value="off">Light off</button>
+          <button class="btn btn-small" data-webcam="flux_meter">Refresh</button>
+        </div>
       </div>
       <div class="webcam-card">
         <h3>Oil pump manometer</h3>

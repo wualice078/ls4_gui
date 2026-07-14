@@ -133,17 +133,23 @@ def run_closedome() -> tuple[bool, str]:
 
 
 def run_pdu(outlet: int, powered: bool) -> tuple[bool, str]:
+    """Match mountain preflight: ~/kenneth/pdu_api.py -p|-o <outlet>."""
     flag = "-p" if powered else "-o"
     pdu = PDU_SCRIPT
+    if not pdu.exists():
+        return False, f"PDU script not found: {pdu}"
     result = subprocess.run(
         [str(Path(os.environ.get("LS4_GUI_PYTHON", GUI_PYTHON))), str(pdu), flag, str(outlet)],
         capture_output=True,
         text=True,
         timeout=30,
-        cwd=OBSERVER_HOME,
+        cwd=str(pdu.parent),
     )
     output = (result.stdout or "") + (result.stderr or "")
-    return result.returncode == 0, output.strip()
+    label = "on" if powered else "off"
+    if result.returncode != 0:
+        return False, output.strip() or f"PDU outlet {outlet} {label} failed."
+    return True, output.strip() or f"PDU outlet {outlet} turned {label}."
 
 
 def run_stow_telescope() -> tuple[bool, str]:
