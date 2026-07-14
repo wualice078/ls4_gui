@@ -51,7 +51,13 @@ class ControlService:
         return Path(__file__).resolve().parents[1] / "sim" / "webcam_capture.py"
 
     def _run_sim_webcam(self, camera: str) -> tuple[bool, str, Path | None]:
-        mapping = {"oil_pump": "oil_pump", "tcs": "tcs", "flux_meter": "flux", "dome": "dome", "aux": "tcs"}
+        mapping = {
+            "oil_pump": "oil_pump",
+            "tcs": "tcs",
+            "flux_meter": "flux",
+            "dome": "dome",
+            "aux": "aux",
+        }
         cam = mapping.get(camera)
         if cam is None:
             return False, f"Unknown camera: {camera}", None
@@ -251,7 +257,7 @@ class ControlService:
             "tcs": SIM_WEBCAM_DIR / "tcs_latest.svg",
             "flux_meter": SIM_WEBCAM_DIR / "flux_meter_latest.svg",
             "dome": SIM_WEBCAM_DIR / "dome_latest.svg",
-            "aux": SIM_WEBCAM_DIR / "tcs_latest.svg",
+            "aux": SIM_WEBCAM_DIR / "aux_latest.svg",
         }
         path = sim_paths.get(camera)
         if path and path.exists():

@@ -196,7 +196,7 @@ def api_webcam_image(camera: str):
         "tcs": "TCS Webcam",
         "flux_meter": "Flux Meter Camera",
         "dome": "Dome Camera",
-        "aux": "Aux Camera",
+        "aux": "Secondary Dome Camera (cam2)",
     }
     mode = "SIMULATED" if SIMULATE else "LIVE"
     label = labels[camera]

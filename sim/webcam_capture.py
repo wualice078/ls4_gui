@@ -76,9 +76,14 @@ def capture_dome(state: dict, output: Path | None) -> Path:
     return _write_image(path, _svg("Dome Camera", subtitle, accent))
 
 
+def capture_aux(state: dict, output: Path | None) -> Path:
+    path = output or WEBCAM_DIR / "aux_latest.svg"
+    return _write_image(path, _svg("Secondary Dome Camera", "nuc snapshots · cam2", "#38bdf8"))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--camera", choices=["tcs", "oil_pump", "flux", "dome"], default="tcs")
+    parser.add_argument("--camera", choices=["tcs", "oil_pump", "flux", "dome", "aux"], default="tcs")
     parser.add_argument("-o", "--output")
     args = parser.parse_args()
 
@@ -91,6 +96,8 @@ def main() -> int:
         path = capture_oil_pump(state, output)
     elif args.camera == "dome":
         path = capture_dome(state, output)
+    elif args.camera == "aux":
+        path = capture_aux(state, output)
     else:
         path = capture_flux_cam(state, output)
 

@@ -57,9 +57,10 @@
       <button class="btn btn-danger" data-action="telescope" data-value="stop">Stop questctl</button>
     </div>
     <p class="muted small">Start telescope control before opening the dome.</p>
-    <img id="aux-image" class="panel-camera-image" src="{{ url_for('api_webcam_image', camera='aux') }}" alt="Auxiliary camera">
+    <p class="muted small">Secondary dome view (nuc cam2)</p>
+    <img id="aux-image" class="panel-camera-image" src="{{ url_for('api_webcam_image', camera='aux') }}" alt="Secondary dome camera (cam2)">
     <div class="button-row">
-      <button class="btn btn-secondary" data-webcam="aux">Refresh camera</button>
+      <button class="btn btn-secondary" data-webcam="aux">Refresh secondary dome view</button>
     </div>
   </article>
 
