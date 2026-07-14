@@ -56,10 +56,6 @@ function refreshWebcam(camera) {
   };
   const metaIds = {
     oil_pump: "oil-pump-meta",
-    tcs: "tcs-meta",
-    flux_meter: "flux-meter-meta",
-    dome: "dome-meta",
-    aux: "aux-meta",
   };
   const image = document.getElementById(imageIds[camera]);
   if (!image) return Promise.resolve();
@@ -70,12 +66,10 @@ function refreshWebcam(camera) {
     if (data.status) updateStatus(data.status);
     const meta = document.getElementById(metaIds[camera]);
     if (meta) {
-      if (data.image_captured_at || data.image_name) {
-        const stamp = data.image_captured_at || "unknown time";
-        const name = data.image_name || "";
-        meta.textContent = name ? `Image: ${stamp} · ${name}` : `Image: ${stamp}`;
+      if (data.image_captured_at) {
+        meta.textContent = `Captured: ${data.image_captured_at}`;
       } else {
-        meta.textContent = data.ok ? "Image refreshed" : "No image available";
+        meta.textContent = data.ok ? "Captured: unknown" : "Captured: —";
       }
     }
     return data;
