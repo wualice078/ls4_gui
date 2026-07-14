@@ -36,20 +36,17 @@ function updateStatus(status) {
   if (telescopeBadge) telescopeBadge.textContent = `Telescope: ${status.telescope_services || "unknown"}`;
 
   const stopQuestctl = document.getElementById("stop-questctl-btn");
-  const stowMeta = document.getElementById("telescope-stow-meta");
-  const stowed = Boolean(status.telescope_stowed);
   if (stopQuestctl) {
-    stopQuestctl.disabled = !stowed;
-    if (stowed) {
-      stopQuestctl.removeAttribute("title");
+    const running = status.telescope_services === "running";
+    const domeOpen = status.dome === "open" || status.dome === "opening";
+    stopQuestctl.disabled = !running || domeOpen;
+    if (!running) {
+      stopQuestctl.title = "Start questctl before you can stop it";
+    } else if (domeOpen) {
+      stopQuestctl.title = "Close the dome before stopping questctl";
     } else {
-      stopQuestctl.title = "Stow the telescope first";
+      stopQuestctl.removeAttribute("title");
     }
-  }
-  if (stowMeta) {
-    stowMeta.textContent = stowed
-      ? "Telescope marked stowed — stop questctl allowed."
-      : "Telescope not marked stowed — run Stow before stopping questctl.";
   }
 
   Object.entries(status.pdu_outlets || {}).forEach(([outlet, state]) => {

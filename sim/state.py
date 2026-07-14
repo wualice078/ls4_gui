@@ -37,7 +37,6 @@ class SimState:
             "dome_transition_ends_at": None,
             "scheduler": "stopped",
             "telescope_services": "stopped",
-            "telescope_stowed": True,
             "pdu_outlets": {str(i): False for i in range(1, 9)},
             "webcams": {
                 "oil_pump": {"pump_on": True, "updated_at": None},
@@ -69,12 +68,6 @@ class SimState:
                 "dome": state["dome"],
                 "scheduler": state["scheduler"],
                 "telescope_services": state["telescope_services"],
-                "telescope_stowed": bool(
-                    state.get(
-                        "telescope_stowed",
-                        state.get("telescope_services") != "running",
-                    )
-                ),
                 "pdu_outlets": {
                     outlet: "on" if powered else "off"
                     for outlet, powered in state["pdu_outlets"].items()
@@ -141,15 +134,6 @@ class SimState:
             state = self._read()
             state["telescope_services"] = state_name
             state["questctl_running"] = state_name == "running"
-            # Starting questctl means the telescope may leave stow.
-            if state_name == "running":
-                state["telescope_stowed"] = False
-            self._write(state)
-
-    def set_telescope_stowed(self, stowed: bool) -> None:
-        with self._lock:
-            state = self._read()
-            state["telescope_stowed"] = bool(stowed)
             self._write(state)
 
     def set_pdu_outlet(self, outlet: int, powered: bool) -> tuple[bool, str]:

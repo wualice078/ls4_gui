@@ -110,7 +110,6 @@ class ControlService:
             "dome": self._sim.dome_status(),
             "scheduler": snap["scheduler"],
             "telescope_services": snap["telescope_services"],
-            "telescope_stowed": snap.get("telescope_stowed", True),
             "pdu_outlets": self._operator_pdu_status(snap["pdu_outlets"]),
             "pdu_outlet_labels": {str(k): v for k, v in PDU_OUTLET_LABELS.items()},
             "scheduler_pause_enabled": ENABLE_SCHEDULER_PAUSE,
@@ -149,12 +148,18 @@ class ControlService:
         return ActionResult(True, "Telescope services started (simulated).", {"status": self.status()})
 
     def telescope_stop(self) -> ActionResult:
-        if not self._sim.snapshot().get("telescope_stowed", True):
+        status = self.status()
+        if status.get("telescope_services") != "running":
             return ActionResult(
                 False,
-                "Stow the telescope before stopping questctl "
-                "(end-of-night: stow → verify → stop_questctl).",
-                {"status": self.status()},
+                "Questctl is not running — nothing to stop.",
+                {"status": status},
+            )
+        if status.get("dome") in {"open", "opening"}:
+            return ActionResult(
+                False,
+                "Close the dome before stopping questctl.",
+                {"status": status},
             )
 
         if self._live_hardware():
@@ -169,11 +174,8 @@ class ControlService:
     def stow_telescope(self) -> ActionResult:
         if self._live_hardware():
             ok, message = mountain.run_stow_telescope()
-            if ok:
-                self._sim.set_telescope_stowed(True)
             return ActionResult(ok, message, {"status": self.status()})
 
-        self._sim.set_telescope_stowed(True)
         return ActionResult(True, "Telescope stowed (simulated).", {"status": self.status()})
 
     @staticmethod
