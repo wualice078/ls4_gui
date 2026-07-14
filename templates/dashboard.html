@@ -35,7 +35,9 @@
       </div>
       <div class="webcam-card">
         <h3>Oil pump</h3>
-        <p class="muted small">Check oil pump / vacuum gauge before opening the dome. Camera mapping TBD.</p>
+        <p class="muted small">Check oil pump manometer before opening the dome.</p>
+        <img id="oil-pump-image" src="{{ url_for('api_webcam_image', camera='oil_pump') }}" alt="Oil pump webcam">
+        <button class="btn" data-webcam="oil_pump">Refresh</button>
       </div>
       <div class="webcam-card">
         <h3>TCS</h3>
@@ -55,9 +57,9 @@
       <button class="btn btn-danger" data-action="telescope" data-value="stop">Stop questctl</button>
     </div>
     <p class="muted small">Start telescope control before opening the dome.</p>
-    <img id="oil-pump-image" class="panel-camera-image" src="{{ url_for('api_webcam_image', camera='oil_pump') }}" alt="Secondary dome camera">
+    <img id="aux-image" class="panel-camera-image" src="{{ url_for('api_webcam_image', camera='aux') }}" alt="Auxiliary camera">
     <div class="button-row">
-      <button class="btn btn-secondary" data-webcam="oil_pump">Refresh camera</button>
+      <button class="btn btn-secondary" data-webcam="aux">Refresh camera</button>
     </div>
   </article>
 

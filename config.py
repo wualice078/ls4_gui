@@ -40,14 +40,29 @@ DOME_SYNC_ENABLED = os.getenv("LS4_DOME_SYNC_ENABLED", "false").lower() in {"1",
 DOME_REMOTE_HOST = os.getenv("LS4_DOME_REMOTE_HOST", "")
 DOME_REMOTE_DIR = _path("LS4_DOME_REMOTE_DIR", "/home/ls4/snapshots")
 DOME_SSH_KEY = _path("LS4_DOME_SSH_KEY", str(OBSERVER_HOME / ".ssh" / "id_ed25519_ls4snap"))
-OIL_PUMP_IMAGE_DIR = _path("LS4_OIL_PUMP_IMAGE_DIR", "/home/ls4/snapshots")
-OIL_PUMP_CAM_TAG = os.getenv("LS4_OIL_PUMP_CAM_TAG", "cam2")
+OIL_PUMP_IMAGE_DIR = _path(
+    "LS4_OIL_PUMP_IMAGE_DIR",
+    str(OBSERVER_HOME / "sim" / "webcams" / "oilpump_cache"),
+)
 OIL_PUMP_SYNC_ENABLED = os.getenv("LS4_OIL_PUMP_SYNC_ENABLED", "false").lower() in {"1", "true", "yes"}
-OIL_PUMP_REMOTE_HOST = os.getenv("LS4_OIL_PUMP_REMOTE_HOST", "")
-OIL_PUMP_REMOTE_DIR = _path("LS4_OIL_PUMP_REMOTE_DIR", "/home/ls4/snapshots")
+# Hop: workstn --ssh--> nuc --ssh--> interlock (gpignata / webpump images).
+OIL_PUMP_JUMP_HOST = os.getenv("LS4_OIL_PUMP_JUMP_HOST", "ls4@192.168.1.74")
+OIL_PUMP_REMOTE_HOST = os.getenv("LS4_OIL_PUMP_REMOTE_HOST", "gpignata@192.168.50.200")
+OIL_PUMP_REMOTE_DIR = _path("LS4_OIL_PUMP_REMOTE_DIR", "/home/gpignata/LS4/webpump")
+OIL_PUMP_REMOTE_GLOB = os.getenv("LS4_OIL_PUMP_REMOTE_GLOB", "webpump_*.jpg")
 OIL_PUMP_SSH_KEY = _path("LS4_OIL_PUMP_SSH_KEY", str(OBSERVER_HOME / ".ssh" / "id_ed25519_ls4snap"))
+# Optional legacy cam-tag sync from nuc snapshots (unused when interlock hop is enabled).
+OIL_PUMP_CAM_TAG = os.getenv("LS4_OIL_PUMP_CAM_TAG", "cam2")
 READ_PRESSURE_SCRIPT = _path("LS4_READ_PRESSURE_SCRIPT", str(KENNETH_DIR / "read_pressure.py"))
 PRESSURE_LOG_FILE = _path("LS4_PRESSURE_LOG_FILE", str(KENNETH_DIR / "pressure_log.txt"))
+
+# Extra cam under Telescope services (nuc snapshot cam2 by default).
+AUX_IMAGE_DIR = _path("LS4_AUX_IMAGE_DIR", str(OBSERVER_HOME / "sim" / "webcams" / "aux_cache"))
+AUX_CAM_TAG = os.getenv("LS4_AUX_CAM_TAG", "cam2")
+AUX_SYNC_ENABLED = os.getenv("LS4_AUX_SYNC_ENABLED", "false").lower() in {"1", "true", "yes"}
+AUX_REMOTE_HOST = os.getenv("LS4_AUX_REMOTE_HOST", "ls4@192.168.1.74")
+AUX_REMOTE_DIR = _path("LS4_AUX_REMOTE_DIR", "/home/ls4/snapshots")
+AUX_SSH_KEY = _path("LS4_AUX_SSH_KEY", str(OBSERVER_HOME / ".ssh" / "id_ed25519_ls4snap"))
 
 # Sim state, webcam placeholders, and mosaic browser previews.
 SIM_DIR = _path("LS4_SIM_DIR", str(OBSERVER_HOME / "sim"))

@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from pathlib import Path
 
 from config import (
+    AUX_CAM_TAG,
+    AUX_IMAGE_DIR,
+    AUX_REMOTE_DIR,
+    AUX_REMOTE_HOST,
+    AUX_SSH_KEY,
+    AUX_SYNC_ENABLED,
     DOME_CAM_TAG,
     DOME_IMAGE_DIR,
     DOME_REMOTE_DIR,
@@ -23,7 +30,9 @@ from config import (
     OIL_PUMP_CAPTURE_SCRIPT,
     OIL_PUMP_CAM_TAG,
     OIL_PUMP_IMAGE_DIR,
+    OIL_PUMP_JUMP_HOST,
     OIL_PUMP_REMOTE_DIR,
+    OIL_PUMP_REMOTE_GLOB,
     OIL_PUMP_REMOTE_HOST,
     OIL_PUMP_RENDER_OUTPUT,
     OIL_PUMP_SSH_KEY,
@@ -244,17 +253,18 @@ def latest_dome_snapshot() -> Path | None:
 
 
 def latest_oil_pump_snapshot() -> Path | None:
+    image = _latest_image(OIL_PUMP_IMAGE_DIR, "webpump_*.jpg")
+    if image is not None:
+        return image
+    image = _latest_image(OIL_PUMP_IMAGE_DIR, "*oil*pump*.jpg")
+    if image is not None:
+        return image
+
     tagged = _latest_image(OIL_PUMP_IMAGE_DIR, f"*_{OIL_PUMP_CAM_TAG}.jpg")
     if tagged is not None:
         return tagged
 
-    # Fallback order for deployments where camera mapping differs.
-    for cam_tag in ("cam2", "cam1", "cam3"):
-        image = _latest_image(OIL_PUMP_IMAGE_DIR, f"*_{cam_tag}.jpg")
-        if image is not None:
-            return image
-
-    for pattern in ("*oil*pump*.jpg", "*oil*pump*.png", "*manometer*.jpg", "*pressure*.jpg"):
+    for pattern in ("*manometer*.jpg", "*pressure*.jpg", "*.jpg", "*.png"):
         image = _latest_image(OIL_PUMP_IMAGE_DIR, pattern)
         if image is not None:
             return image
@@ -262,6 +272,13 @@ def latest_oil_pump_snapshot() -> Path | None:
         if candidate.exists():
             return candidate
     return None
+
+
+def latest_aux_snapshot() -> Path | None:
+    tagged = _latest_image(AUX_IMAGE_DIR, f"*_{AUX_CAM_TAG}.jpg")
+    if tagged is not None:
+        return tagged
+    return _latest_image(AUX_IMAGE_DIR, "*.jpg")
 
 
 def _sync_snapshot_images(
@@ -315,6 +332,86 @@ def _sync_snapshot_images(
     return True, f"Synchronized {label.lower()} snapshots ({include_pattern})."
 
 
+def sync_via_jump_host(
+    *,
+    enabled: bool,
+    jump_host: str,
+    remote_host: str,
+    remote_dir: Path,
+    remote_glob: str,
+    ssh_key: Path,
+    image_dir: Path,
+    label: str,
+) -> tuple[bool, str]:
+    """Pull the newest matching remote file through a jump host (nuc → interlock)."""
+    if not enabled:
+        return False, f"{label} remote sync disabled."
+    if not jump_host or not remote_host:
+        return False, f"{label} jump/remote host not configured."
+    if not ssh_key.exists():
+        return False, f"{label} SSH key not found: {ssh_key}"
+
+    image_dir.mkdir(parents=True, exist_ok=True)
+    remote_pattern = f"{remote_dir}/{remote_glob}"
+    locate_remote = (
+        f"ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new {remote_host} "
+        f"{shlex.quote(f'ls -t {remote_pattern} 2>/dev/null | head -1')}"
+    )
+    locate = subprocess.run(
+        [
+            "ssh",
+            "-i",
+            str(ssh_key),
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            jump_host,
+            locate_remote,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        cwd=OBSERVER_HOME,
+    )
+    if locate.returncode != 0:
+        output = ((locate.stderr or "") + (locate.stdout or "")).strip()
+        return False, output or f"{label}: failed to locate remote image."
+
+    remote_path = (locate.stdout or "").strip().splitlines()
+    if not remote_path or not remote_path[0].strip():
+        return False, f"{label}: no files matching {remote_pattern}."
+    remote_file = remote_path[0].strip()
+    local_file = image_dir / Path(remote_file).name
+
+    pull_remote = (
+        f"ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new {remote_host} "
+        f"{shlex.quote('cat ' + shlex.quote(remote_file))}"
+    )
+    pull = subprocess.run(
+        [
+            "ssh",
+            "-i",
+            str(ssh_key),
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            jump_host,
+            pull_remote,
+        ],
+        capture_output=True,
+        timeout=60,
+        cwd=OBSERVER_HOME,
+    )
+    if pull.returncode != 0:
+        err = (pull.stderr or b"").decode("utf-8", errors="replace").strip()
+        return False, err or f"{label}: failed to pull {remote_file}."
+
+    local_file.write_bytes(pull.stdout)
+    return True, f"Synchronized {label.lower()} image ({local_file.name})."
+
+
 def sync_dome_snapshots() -> tuple[bool, str]:
     return _sync_snapshot_images(
         enabled=DOME_SYNC_ENABLED,
@@ -328,14 +425,27 @@ def sync_dome_snapshots() -> tuple[bool, str]:
 
 
 def sync_oil_pump_snapshots() -> tuple[bool, str]:
-    return _sync_snapshot_images(
+    return sync_via_jump_host(
         enabled=OIL_PUMP_SYNC_ENABLED,
+        jump_host=OIL_PUMP_JUMP_HOST,
         remote_host=OIL_PUMP_REMOTE_HOST,
         remote_dir=OIL_PUMP_REMOTE_DIR,
+        remote_glob=OIL_PUMP_REMOTE_GLOB,
         ssh_key=OIL_PUMP_SSH_KEY,
         image_dir=OIL_PUMP_IMAGE_DIR,
-        cam_tag=OIL_PUMP_CAM_TAG,
         label="Oil pump",
+    )
+
+
+def sync_aux_snapshots() -> tuple[bool, str]:
+    return _sync_snapshot_images(
+        enabled=AUX_SYNC_ENABLED,
+        remote_host=AUX_REMOTE_HOST,
+        remote_dir=AUX_REMOTE_DIR,
+        ssh_key=AUX_SSH_KEY,
+        image_dir=AUX_IMAGE_DIR,
+        cam_tag=AUX_CAM_TAG,
+        label="Aux",
     )
 
 
@@ -378,6 +488,15 @@ def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
             return True, f"Dome camera loaded ({image.name}).", image
         return False, f"{sync_message} No dome images found in {DOME_IMAGE_DIR}", None
 
+    if camera == "aux":
+        sync_ok, sync_message = sync_aux_snapshots()
+        image = latest_aux_snapshot()
+        if image is not None:
+            if sync_ok:
+                return True, f"Aux camera loaded ({image.name}). {sync_message}", image
+            return True, f"Aux camera loaded ({image.name}).", image
+        return False, f"{sync_message} No aux images found in {AUX_IMAGE_DIR}", None
+
     if camera == "tcs":
         image = latest_tcs_snapshot()
         if image is not None:
@@ -396,6 +515,8 @@ def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:
 def resolve_webcam_image(camera: str) -> Path | None:
     if camera == "dome":
         return latest_dome_snapshot()
+    if camera == "aux":
+        return latest_aux_snapshot()
     if camera == "flux_meter":
         return latest_flux_meter_snapshot()
     if camera == "tcs":
