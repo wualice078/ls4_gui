@@ -180,23 +180,18 @@ class ControlService:
         return ActionResult(True, "Telescope services stopped (simulated).", {"status": self.status()})
 
     def stow_telescope(self) -> ActionResult:
-        # End-of-night stow parks the telescope and closes the dome.
+        # Mountain stow_telescope both parks and closes the dome.
         if self._live_hardware():
             ok, message = mountain.run_stow_telescope()
-            if not ok:
-                return ActionResult(ok, message, {"status": self.status()})
-            close_ok, close_msg = mountain.run_closedome()
-            self._sim.request_dome("closed")
-            if close_ok:
-                message = f"{message} Dome close: {close_msg}"
-            else:
-                message = f"{message} (dome close note: {close_msg[:200]})"
-            return ActionResult(True, message, {"status": self.status()})
+            if ok:
+                # Reflect the script's intended outcome in GUI state.
+                self._sim.request_dome("closed")
+            return ActionResult(ok, message, {"status": self.status()})
 
         self._sim.request_dome("closed")
         return ActionResult(
             True,
-            "Telescope stowed and dome closed (simulated).",
+            "Telescope stowed (simulated; mountain stow_telescope also closes the dome).",
             {"status": self.status()},
         )
 
