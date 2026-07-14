@@ -85,7 +85,13 @@
         data-value="open"
         {% if status.telescope_services != 'running' %}disabled title="Start questctl first"{% endif %}
       >Open dome</button>
-      <button class="btn btn-danger" data-action="dome" data-value="close">Close dome</button>
+      <button
+        class="btn btn-danger"
+        id="close-dome-btn"
+        data-action="dome"
+        data-value="close"
+        {% if status.dome not in ('open', 'opening') %}disabled title="Dome is not open"{% endif %}
+      >Close dome</button>
       <button class="btn btn-secondary" data-webcam="dome">Refresh dome view</button>
     </div>
     <p class="muted small">Open only after questctl is running and preflight checks pass.</p>

@@ -136,6 +136,14 @@ class ControlService:
         return ActionResult(ok, message, {"status": self.status()})
 
     def close_dome(self) -> ActionResult:
+        status = self.status()
+        if status.get("dome") not in {"open", "opening"}:
+            return ActionResult(
+                False,
+                "Dome is not open — nothing to close.",
+                {"status": status},
+            )
+
         ok, message = self._sim.request_dome("closed")
         if self._live_hardware():
             stack_ok, stack_msg = mountain.run_closedome()

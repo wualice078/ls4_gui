@@ -70,6 +70,17 @@ function updateStatus(status) {
     }
   }
 
+  const closeDome = document.getElementById("close-dome-btn");
+  if (closeDome) {
+    const domeOpen = status.dome === "open" || status.dome === "opening";
+    closeDome.disabled = !domeOpen;
+    if (domeOpen) {
+      closeDome.removeAttribute("title");
+    } else {
+      closeDome.title = "Dome is not open";
+    }
+  }
+
   Object.entries(status.pdu_outlets || {}).forEach(([outlet, state]) => {
     const card = document.querySelector(`.pdu-outlet[data-outlet="${outlet}"] .pdu-state`);
     if (card) card.textContent = state;
