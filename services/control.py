@@ -237,6 +237,14 @@ class ControlService:
         return ActionResult(ok, message, {"status": self.status()})
 
     def scheduler_start(self) -> ActionResult:
+        status = self.status()
+        if status.get("dome") != "open":
+            return ActionResult(
+                False,
+                "Open the dome before starting observing.",
+                {"status": status},
+            )
+
         if self._live_hardware():
             ok, message = mountain.run_obs_control("start")
             if ok:
@@ -247,6 +255,14 @@ class ControlService:
         return ActionResult(True, "Observing started (simulated).", {"status": self.status()})
 
     def scheduler_stop(self) -> ActionResult:
+        status = self.status()
+        if status.get("scheduler") not in {"running", "paused"}:
+            return ActionResult(
+                False,
+                "Observing has not started — nothing to stop.",
+                {"status": status},
+            )
+
         if self._live_hardware():
             ok, message = mountain.run_obs_control("stop")
             if ok:

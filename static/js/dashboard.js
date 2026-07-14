@@ -92,6 +92,28 @@ function updateStatus(status) {
     }
   }
 
+  const startObserving = document.getElementById("start-observing-btn");
+  if (startObserving) {
+    const domeOpen = status.dome === "open";
+    startObserving.disabled = !domeOpen;
+    if (domeOpen) {
+      startObserving.removeAttribute("title");
+    } else {
+      startObserving.title = "Open the dome first";
+    }
+  }
+
+  const stopObserving = document.getElementById("stop-observing-btn");
+  if (stopObserving) {
+    const observing = status.scheduler === "running" || status.scheduler === "paused";
+    stopObserving.disabled = !observing;
+    if (observing) {
+      stopObserving.removeAttribute("title");
+    } else {
+      stopObserving.title = "Observing has not started";
+    }
+  }
+
   Object.entries(status.pdu_outlets || {}).forEach(([outlet, state]) => {
     const card = document.querySelector(`.pdu-outlet[data-outlet="${outlet}"] .pdu-state`);
     if (card) card.textContent = state;

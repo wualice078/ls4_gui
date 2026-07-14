@@ -125,13 +125,25 @@
       <h2>Observing</h2>
     </div>
     <div class="button-row">
-      <button class="btn btn-success" data-action="scheduler" data-value="start">Start</button>
+      <button
+        class="btn btn-success"
+        id="start-observing-btn"
+        data-action="scheduler"
+        data-value="start"
+        {% if status.dome != 'open' %}disabled title="Open the dome first"{% endif %}
+      >Start</button>
       {% if scheduler_pause_enabled %}
       <button class="btn btn-warning" data-action="scheduler" data-value="pause">Pause</button>
       {% endif %}
-      <button class="btn btn-danger" data-action="scheduler" data-value="stop">Stop</button>
+      <button
+        class="btn btn-danger"
+        id="stop-observing-btn"
+        data-action="scheduler"
+        data-value="stop"
+        {% if status.scheduler not in ('running', 'paused') %}disabled title="Observing has not started"{% endif %}
+      >Stop</button>
     </div>
-    <p class="muted small">Start after dome, instrument, and camera checks are complete.</p>
+    <p class="muted small">Start only after the dome is open and instrument/camera checks are complete.</p>
   </article>
 
   <article class="panel">
