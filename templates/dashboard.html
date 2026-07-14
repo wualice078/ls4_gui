@@ -56,9 +56,8 @@
     </div>
     <div class="button-row">
       <button class="btn btn-success" data-action="telescope" data-value="start">Start questctl</button>
-      <button class="btn btn-danger" data-action="telescope" data-value="stop">Stop questctl</button>
     </div>
-    <p class="muted small">Start telescope control before opening the dome.</p>
+    <p class="muted small">Start telescope control before opening the dome. Stop questctl only at end of night after stowing.</p>
     <p class="muted small">Secondary dome view (nuc cam2)</p>
     <img id="aux-image" class="panel-camera-image" src="{{ url_for('api_webcam_image', camera='aux') }}" alt="Secondary dome camera (cam2)">
     <div class="button-row">
@@ -122,8 +121,21 @@
     </div>
     <div class="button-row">
       <button class="btn btn-warning" data-action="telescope" data-value="stow">Stow telescope</button>
+      <button
+        class="btn btn-danger"
+        id="stop-questctl-btn"
+        data-action="telescope"
+        data-value="stop"
+        {% if not status.telescope_stowed %}disabled title="Stow the telescope first"{% endif %}
+      >Stop questctl</button>
     </div>
-    <p class="muted small">Stop observing, stow the telescope, close the dome, then stop questctl.</p>
+    <p class="muted small">
+      After the last readout: stop observing → close dome → stow telescope → check webcams → then stop questctl.
+      Stop questctl stays disabled until stow succeeds.
+    </p>
+    <p class="muted small" id="telescope-stow-meta">
+      {% if status.telescope_stowed %}Telescope marked stowed — stop questctl allowed.{% else %}Telescope not marked stowed — run Stow before stopping questctl.{% endif %}
+    </p>
   </article>
 
   <article class="panel full-width">
