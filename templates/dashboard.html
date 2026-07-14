@@ -139,7 +139,13 @@
       <h2>End of night</h2>
     </div>
     <div class="button-row">
-      <button class="btn btn-warning" data-action="telescope" data-value="stow">Stow telescope</button>
+      <button
+        class="btn btn-warning"
+        id="stow-telescope-btn"
+        data-action="telescope"
+        data-value="stow"
+        {% if status.dome not in ('open', 'opening') %}disabled title="Dome must be open to stow"{% endif %}
+      >Stow telescope</button>
     </div>
     <p class="muted small">
       After the last readout: stop observing → stow telescope (parks + closes dome) → check webcams → then stop questctl.

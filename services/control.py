@@ -189,6 +189,14 @@ class ControlService:
 
     def stow_telescope(self) -> ActionResult:
         # Mountain stow_telescope both parks and closes the dome.
+        status = self.status()
+        if status.get("dome") not in {"open", "opening"}:
+            return ActionResult(
+                False,
+                "Open the dome before stowing the telescope.",
+                {"status": status},
+            )
+
         if self._live_hardware():
             ok, message = mountain.run_stow_telescope()
             if ok:

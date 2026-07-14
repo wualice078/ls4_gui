@@ -81,6 +81,17 @@ function updateStatus(status) {
     }
   }
 
+  const stowTelescope = document.getElementById("stow-telescope-btn");
+  if (stowTelescope) {
+    const domeOpen = status.dome === "open" || status.dome === "opening";
+    stowTelescope.disabled = !domeOpen;
+    if (domeOpen) {
+      stowTelescope.removeAttribute("title");
+    } else {
+      stowTelescope.title = "Dome must be open to stow";
+    }
+  }
+
   Object.entries(status.pdu_outlets || {}).forEach(([outlet, state]) => {
     const card = document.querySelector(`.pdu-outlet[data-outlet="${outlet}"] .pdu-state`);
     if (card) card.textContent = state;
