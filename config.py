@@ -32,7 +32,23 @@ OBSERVER_HOME = _path("LS4_OBSERVER_HOME", "/home/observer")
 KENNETH_DIR = _path("LS4_KENNETH_DIR", "/home/ls4/kenneth")
 LS4_DATA_DIR = _path("LS4_DATA_DIR", "/data/observer")
 
-FLUX_METER_SNAPSHOT_DIR = _path("LS4_FLUX_METER_SNAPSHOT_DIR", "/home/ls4/snapshots")
+# Flux meter uses nuc snapshots *_cam3.jpg (same sync pattern as dome cam1 / aux cam2).
+FLUX_METER_SNAPSHOT_DIR = _path(
+    "LS4_FLUX_METER_SNAPSHOT_DIR",
+    str(OBSERVER_HOME / "sim" / "webcams" / "flux_cache"),
+)
+FLUX_METER_CAM_TAG = os.getenv("LS4_FLUX_METER_CAM_TAG", "cam3")
+FLUX_METER_SYNC_ENABLED = os.getenv("LS4_FLUX_METER_SYNC_ENABLED", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+FLUX_METER_REMOTE_HOST = os.getenv("LS4_FLUX_METER_REMOTE_HOST", "ls4@192.168.1.74")
+FLUX_METER_REMOTE_DIR = _path("LS4_FLUX_METER_REMOTE_DIR", "/home/ls4/snapshots")
+FLUX_METER_SSH_KEY = _path(
+    "LS4_FLUX_METER_SSH_KEY",
+    str(OBSERVER_HOME / ".ssh" / "id_ed25519_ls4snap"),
+)
 TCS_WEBCAM_DIR = _path("LS4_TCS_WEBCAM_DIR", str(KENNETH_DIR))
 DOME_IMAGE_DIR = _path("LS4_DOME_IMAGE_DIR", "/home/ls4/snapshots")
 DOME_CAM_TAG = os.getenv("LS4_DOME_CAM_TAG", "cam1")

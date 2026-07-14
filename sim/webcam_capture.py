@@ -65,7 +65,7 @@ def capture_flux_cam(state: dict, output: Path | None) -> Path:
     subtitle = "Flux meter light ON" if light_on else "Flux meter light OFF"
     accent = "#38bdf8" if light_on else "#94a3b8"
     path = output or WEBCAM_DIR / "flux_meter_latest.svg"
-    return _write_image(path, _svg("Flux Meter Camera", subtitle, accent))
+    return _write_image(path, _svg("Flux Meter Camera (cam3)", subtitle, accent))
 
 
 def capture_dome(state: dict, output: Path | None) -> Path:

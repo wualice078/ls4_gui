@@ -20,7 +20,12 @@ from config import (
     DOME_REMOTE_HOST,
     DOME_SSH_KEY,
     DOME_SYNC_ENABLED,
+    FLUX_METER_CAM_TAG,
+    FLUX_METER_REMOTE_DIR,
+    FLUX_METER_REMOTE_HOST,
     FLUX_METER_SNAPSHOT_DIR,
+    FLUX_METER_SSH_KEY,
+    FLUX_METER_SYNC_ENABLED,
     GUI_PYTHON,
     KENNETH_DIR,
     LS4_DATA_DIR,
@@ -234,6 +239,9 @@ def run_make_mosaic(prefix: str, data_dir: Path | None = None) -> tuple[bool, st
 
 
 def latest_flux_meter_snapshot() -> Path | None:
+    tagged = _latest_image(FLUX_METER_SNAPSHOT_DIR, f"*_{FLUX_METER_CAM_TAG}.jpg")
+    if tagged is not None:
+        return tagged
     return _latest_image(FLUX_METER_SNAPSHOT_DIR, "*_cam3.jpg")
 
 
@@ -449,6 +457,18 @@ def sync_aux_snapshots() -> tuple[bool, str]:
     )
 
 
+def sync_flux_meter_snapshots() -> tuple[bool, str]:
+    return _sync_snapshot_images(
+        enabled=FLUX_METER_SYNC_ENABLED,
+        remote_host=FLUX_METER_REMOTE_HOST,
+        remote_dir=FLUX_METER_REMOTE_DIR,
+        ssh_key=FLUX_METER_SSH_KEY,
+        image_dir=FLUX_METER_SNAPSHOT_DIR,
+        cam_tag=FLUX_METER_CAM_TAG,
+        label="Flux meter",
+    )
+
+
 def refresh_oil_pump() -> tuple[bool, str, Path | None]:
     sync_ok, sync_message = sync_oil_pump_snapshots()
     image = latest_oil_pump_snapshot()
@@ -471,11 +491,14 @@ def refresh_oil_pump() -> tuple[bool, str, Path | None]:
 
 
 def refresh_flux_meter() -> tuple[bool, str, Path | None]:
+    sync_ok, sync_message = sync_flux_meter_snapshots()
     snapshot = latest_flux_meter_snapshot()
     if snapshot is not None:
+        if sync_ok:
+            return True, f"Flux meter snapshot loaded ({snapshot.name}). {sync_message}", snapshot
         return True, f"Flux meter snapshot loaded ({snapshot.name}).", snapshot
 
-    return False, f"No flux meter images found in {FLUX_METER_SNAPSHOT_DIR}", None
+    return False, f"{sync_message} No flux meter images found in {FLUX_METER_SNAPSHOT_DIR}", None
 
 
 def refresh_webcam(camera: str) -> tuple[bool, str, Path | None]:

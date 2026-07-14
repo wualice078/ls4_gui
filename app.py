@@ -196,7 +196,7 @@ def api_webcam_image(camera: str):
     labels = {
         "oil_pump": "Oil Pump Manometer",
         "tcs": "TCS Servos",
-        "flux_meter": "Flux Meter Camera",
+        "flux_meter": "Flux Meter Camera (cam3)",
         "dome": "Dome Camera (cam1)",
         "aux": "Secondary Dome Camera (cam2)",
     }
