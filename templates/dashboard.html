@@ -26,12 +26,16 @@
       <h2>Pre-flight visual checks</h2>
       <button class="btn btn-secondary" id="refresh-all-webcams">Refresh all</button>
     </div>
-    <div class="webcam-grid">
+    <div class="webcam-grid three-col">
       <div class="webcam-card">
         <h3>Flux meter</h3>
         <p class="muted small">Turn on outlet 8, verify mercury level, then turn outlet 8 off.</p>
         <img id="flux-meter-image" src="{{ url_for('api_webcam_image', camera='flux_meter') }}" alt="Flux meter camera">
         <button class="btn" data-webcam="flux_meter">Refresh</button>
+      </div>
+      <div class="webcam-card">
+        <h3>Oil pump</h3>
+        <p class="muted small">Check oil pump / vacuum gauge before opening the dome. Camera mapping TBD.</p>
       </div>
       <div class="webcam-card">
         <h3>TCS</h3>
