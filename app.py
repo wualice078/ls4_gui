@@ -172,6 +172,8 @@ def api_webcam(camera: str):
             "message": result.message,
             "camera": camera,
             "fetched_at": result.details.get("fetched_at"),
+            "image_name": result.details.get("image_name"),
+            "image_captured_at": result.details.get("image_captured_at"),
             "status": control.status(),
         }
     ), status_code
@@ -192,10 +194,10 @@ def api_webcam_image(camera: str):
         return send_file(image_path, mimetype=mimetype)
 
     labels = {
-        "oil_pump": "Oil Pump Webcam",
-        "tcs": "TCS Webcam",
+        "oil_pump": "Oil Pump Manometer",
+        "tcs": "TCS Servos",
         "flux_meter": "Flux Meter Camera",
-        "dome": "Dome Camera",
+        "dome": "Dome Camera (cam1)",
         "aux": "Secondary Dome Camera (cam2)",
     }
     mode = "SIMULATED" if SIMULATE else "LIVE"

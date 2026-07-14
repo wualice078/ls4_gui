@@ -49,7 +49,7 @@ def capture_tcs(state: dict, output: Path | None) -> Path:
     subtitle = "Servos UP (safe to proceed)" if servos_up else "Servos DOWN (contact LO)"
     accent = "#22c55e" if servos_up else "#ef4444"
     path = output or WEBCAM_DIR / "tcs_latest.svg"
-    return _write_image(path, _svg("TCS Drive Panel", subtitle, accent))
+    return _write_image(path, _svg("TCS Servos", subtitle, accent))
 
 
 def capture_oil_pump(state: dict, output: Path | None) -> Path:
@@ -70,15 +70,15 @@ def capture_flux_cam(state: dict, output: Path | None) -> Path:
 
 def capture_dome(state: dict, output: Path | None) -> Path:
     dome_open = state.get("dome", {}).get("state") == "open"
-    subtitle = "Dome OPEN" if dome_open else "Dome CLOSED"
+    subtitle = "Dome OPEN · nuc cam1" if dome_open else "Dome CLOSED · nuc cam1"
     accent = "#22c55e" if dome_open else "#f59e0b"
     path = output or WEBCAM_DIR / "dome_latest.svg"
-    return _write_image(path, _svg("Dome Camera", subtitle, accent))
+    return _write_image(path, _svg("Dome Camera (cam1)", subtitle, accent))
 
 
 def capture_aux(state: dict, output: Path | None) -> Path:
     path = output or WEBCAM_DIR / "aux_latest.svg"
-    return _write_image(path, _svg("Secondary Dome Camera", "nuc snapshots · cam2", "#38bdf8"))
+    return _write_image(path, _svg("Secondary Dome (cam2)", "nuc snapshots · cam2", "#38bdf8"))
 
 
 def main() -> int:

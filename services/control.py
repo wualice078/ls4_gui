@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -33,6 +34,24 @@ class ActionResult:
     ok: bool
     message: str
     details: dict[str, Any] = field(default_factory=dict)
+
+
+def _image_timestamp_label(path: Path | None) -> str | None:
+    if path is None or not path.exists():
+        return None
+    match = re.search(r"(\d{8})_(\d{6})", path.stem)
+    if match:
+        day, tod = match.group(1), match.group(2)
+        return f"{day[0:4]}-{day[4:6]}-{day[6:8]} {tod[0:2]}:{tod[2:4]}:{tod[4:6]}"
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(path.stat().st_mtime))
+
+
+def _webcam_image_details(camera: str, path: Path | None, fetched_at: float, **extra: Any) -> dict[str, Any]:
+    details = {"camera": camera, "fetched_at": fetched_at, **extra}
+    if path is not None and path.exists():
+        details["image_name"] = path.name
+        details["image_captured_at"] = _image_timestamp_label(path)
+    return details
 
 
 class ControlService:
@@ -233,13 +252,20 @@ class ControlService:
                 return ActionResult(
                     True,
                     f"{message} Showing last available image ({cached.name}).",
-                    {"camera": camera, "fetched_at": now, "degraded": True, "status": self.status()},
+                    _webcam_image_details(
+                        camera,
+                        cached,
+                        now,
+                        degraded=True,
+                        status=self.status(),
+                    ),
                 )
 
+        resolved = path if path is not None and path.exists() else self._last_webcam_path.get(camera)
         return ActionResult(
             ok,
             message,
-            {"camera": camera, "fetched_at": now, "status": self.status()},
+            _webcam_image_details(camera, resolved, now, status=self.status()),
         )
 
     def _resolve_webcam_image(self, camera: str) -> Path | None:

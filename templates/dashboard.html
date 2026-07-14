@@ -31,17 +31,21 @@
         <h3>Flux meter</h3>
         <p class="muted small">Turn on outlet 8, verify mercury level, then turn outlet 8 off.</p>
         <img id="flux-meter-image" src="{{ url_for('api_webcam_image', camera='flux_meter') }}" alt="Flux meter camera">
+        <p class="muted small webcam-meta" id="flux-meter-meta">No image yet</p>
         <button class="btn" data-webcam="flux_meter">Refresh</button>
       </div>
       <div class="webcam-card">
-        <h3>Oil pump</h3>
-        <p class="muted small">Check oil pump manometer before opening the dome.</p>
-        <img id="oil-pump-image" src="{{ url_for('api_webcam_image', camera='oil_pump') }}" alt="Oil pump webcam">
+        <h3>Oil pump manometer</h3>
+        <p class="muted small">Interlock webpump camera — check before opening the dome.</p>
+        <img id="oil-pump-image" src="{{ url_for('api_webcam_image', camera='oil_pump') }}" alt="Oil pump manometer">
+        <p class="muted small webcam-meta" id="oil-pump-meta">No image yet</p>
         <button class="btn" data-webcam="oil_pump">Refresh</button>
       </div>
       <div class="webcam-card">
-        <h3>TCS</h3>
-        <img id="tcs-image" src="{{ url_for('api_webcam_image', camera='tcs') }}" alt="TCS webcam">
+        <h3>TCS servos</h3>
+        <p class="muted small">Telescope drive panel — servos must be up before opening the dome.</p>
+        <img id="tcs-image" src="{{ url_for('api_webcam_image', camera='tcs') }}" alt="TCS servos webcam">
+        <p class="muted small webcam-meta" id="tcs-meta">No image yet</p>
         <button class="btn" data-webcam="tcs">Refresh</button>
       </div>
     </div>
@@ -59,6 +63,7 @@
     <p class="muted small">Start telescope control before opening the dome.</p>
     <p class="muted small">Secondary dome view (nuc cam2)</p>
     <img id="aux-image" class="panel-camera-image" src="{{ url_for('api_webcam_image', camera='aux') }}" alt="Secondary dome camera (cam2)">
+    <p class="muted small webcam-meta" id="aux-meta">No image yet</p>
     <div class="button-row">
       <button class="btn btn-secondary" data-webcam="aux">Refresh secondary dome view</button>
     </div>
@@ -68,13 +73,14 @@
     <div class="panel-header">
       <h2>Dome</h2>
     </div>
-    <img id="dome-image" src="{{ url_for('api_webcam_image', camera='dome') }}" alt="Dome camera">
+    <img id="dome-image" src="{{ url_for('api_webcam_image', camera='dome') }}" alt="Dome camera (cam1)">
+    <p class="muted small webcam-meta" id="dome-meta">No image yet</p>
     <div class="button-row">
       <button class="btn btn-success" data-action="dome" data-value="open">Open dome</button>
       <button class="btn btn-danger" data-action="dome" data-value="close">Close dome</button>
       <button class="btn btn-secondary" data-webcam="dome">Refresh dome view</button>
     </div>
-    <p class="muted small">Open only after meteo checks and webcam verification. Dome view uses cam1 snapshots by default.</p>
+    <p class="muted small">Open only after meteo checks and webcam verification. Primary dome view uses nuc cam1.</p>
   </article>
 
   <article class="panel">
